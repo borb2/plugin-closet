@@ -1,0 +1,16 @@
+sources:
+  modrinth:
+    enabled: true
+    # Modrinth blocks generic user agents. Put a real contact here.
+    user-agent: "PluginCloset/1.0 (+set-your-contact-here)"
+  hangar:
+    enabled: true
+    # Blank = anonymous, which works for public projects. Fill in only if you get 401s.
+    api-key: ""
+
+cache-ttl-minutes: 15
+# 36 fills the 4x9 grid. Split across sources; Hangar caps a single request at 25.
+items-per-page: 36
+default-sort: relevance   # relevance | downloads | follows | newest | updated
+require-confirmation: false
+max-concurrent-downloads: 3

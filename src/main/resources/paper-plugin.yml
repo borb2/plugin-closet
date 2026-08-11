@@ -1,0 +1,20 @@
+name: PluginCloset
+version: '${version}'
+main: me.sirborb.plugincloset.PluginCloset
+api-version: '1.21'
+description: Browse and install plugins from Modrinth and Hangar without leaving the game.
+authors: [sirborb]
+
+permissions:
+  plugincloset.use:
+    description: Open the browser and install plugins.
+    default: op
+  plugincloset.admin:
+    description: Reload config and clear the search cache.
+    default: op
+
+commands:
+  plugincloset:
+    description: Browse and install plugins from Modrinth and Hangar.
+    usage: /plugincloset [search <query>|list|reload]
+    aliases: [pcloset, closet]
