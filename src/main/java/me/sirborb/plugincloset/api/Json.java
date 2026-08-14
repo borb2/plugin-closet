@@ -113,6 +113,11 @@ public final class Json {
                 case 'n' -> b.append('\n');
                 case 'r' -> b.append('\r');
                 case 't' -> b.append('\t');
+                case 'u' -> {
+                    if (i + 4 > s.length()) throw err("truncated unicode escape");
+                    b.append((char) Integer.parseInt(s.substring(i, i + 4), 16));
+                    i += 4;
+                }
                 default -> throw err("bad escape character " + e);
             }
         }
