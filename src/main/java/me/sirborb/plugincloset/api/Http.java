@@ -37,6 +37,7 @@ public final class Http {
         HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofSeconds(30))
                 .header("Accept", "application/json")
+                .header("User-Agent", userAgent)
                 .GET();
         if (bearerToken != null && !bearerToken.isBlank()) {
             b.header("Authorization", "Bearer " + bearerToken);
