@@ -2,10 +2,17 @@ package me.sirborb.plugincloset.model;
 
 import java.util.Locale;
 
-/** A server platform, plus how each source names it. */
+/**
+ * A server platform, plus how each source names it.
+ *
+ * <p>Modrinth knows all nine as loader facets. Hangar's Platform enum is only
+ * PAPER/WATERFALL/VELOCITY — verified against its live OpenAPI spec — so the rest map to
+ * null and simply contribute no Hangar results. Notably Hangar has no FOLIA: a Folia
+ * server asks Hangar for PAPER jars, which is what {@link #hangarName()} returns.
+ */
 public enum Platform {
     PAPER("paper", "PAPER"),
-    FOLIA("folia", "FOLIA"),
+    FOLIA("folia", "PAPER"),      // Hangar has no FOLIA; Paper jars are the right ask.
     SPIGOT("spigot", null),
     BUKKIT("bukkit", null),
     VELOCITY("velocity", "VELOCITY"),
@@ -42,11 +49,14 @@ public enum Platform {
         return UNKNOWN;
     }
 
+    /**
+     * Hangar's platform key back to an enum. PAPER maps to PAPER, never FOLIA — a Hangar
+     * listing cannot tell us whether the jar is Folia-aware.
+     */
     public static Platform fromHangarName(String name) {
         if (name == null) return UNKNOWN;
         return switch (name.toUpperCase(Locale.ROOT)) {
             case "PAPER" -> PAPER;
-            case "FOLIA" -> FOLIA;
             case "WATERFALL" -> WATERFALL;
             case "VELOCITY" -> VELOCITY;
             default -> UNKNOWN;
