@@ -25,7 +25,8 @@ public final class HangarClient implements SourceClient {
 
     private static final String BASE = "https://hangar.papermc.io/api/v1";
 
-    private static final int MAX_LIMIT = 50;
+    /** Hangar rejects limit > 25. This is why a GUI page is split across sources. */
+    private static final int MAX_LIMIT = 25;
 
     private final boolean enabled;
     private final String userAgent;
