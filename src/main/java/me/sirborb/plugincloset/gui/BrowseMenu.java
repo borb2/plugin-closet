@@ -78,6 +78,8 @@ public final class BrowseMenu implements InventoryHolder {
     // --- click handling, dispatched from PluginCloset's listener ---
 
     public void onClick(int slot) {
+        if (slot < 0 || slot >= 54) return;
+
         if (slot < LISTING_SLOTS) {
             if (slot < results.size()) plugin.installer().begin(this, results.get(slot));
             return;
