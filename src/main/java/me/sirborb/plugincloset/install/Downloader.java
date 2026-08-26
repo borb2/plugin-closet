@@ -11,7 +11,9 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
 import java.time.Duration;
+import java.util.HexFormat;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
@@ -22,7 +24,8 @@ import java.util.concurrent.Semaphore;
  * <p>This writes network-supplied bytes under a network-supplied name into the directory
  * the server loads code from, so the checks here are deliberately not minimal: the name is
  * reduced to a sanitised basename, the extension must be exactly {@code .jar}, the resolved
- * target must stay inside the plugins directory, and the body is size-capped.
+ * target must stay inside the plugins directory, the body is size-capped, and a declared
+ * hash must match before anything is moved into place.
  */
 public final class Downloader {
 
@@ -69,9 +72,20 @@ public final class Downloader {
             Path tmp = Files.createTempFile(tmpDir, "dl-", ".part");
             try {
                 long bytes = fetch(file.downloadUrl(), tmp);
+                boolean verified = false;
+                if (file.hasHash()) {
+                    String actual = hash(tmp, file.hashAlgo());
+                    if (!actual.equalsIgnoreCase(file.hashValue())) {
+                        throw new IOException("checksum mismatch for " + name
+                                + " (expected " + file.hashAlgo() + " " + file.hashValue()
+                                + ", got " + actual + ") - not installed");
+                    }
+                    verified = true;
+                }
+                // Only now is the file allowed near the plugins folder.
                 Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
                 removePrevious(previousJar, target);
-                return new Result(target, name, bytes, false);
+                return new Result(target, name, bytes, verified);
             } catch (Exception e) {
                 Files.deleteIfExists(tmp);
                 throw e;
@@ -116,6 +130,16 @@ public final class Downloader {
             }
         }
         return total;
+    }
+
+    private static String hash(Path file, String algo) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance(algo);
+        byte[] buf = new byte[64 * 1024];
+        try (InputStream in = Files.newInputStream(file)) {
+            int read;
+            while ((read = in.read(buf)) != -1) digest.update(buf, 0, read);
+        }
+        return HexFormat.of().formatHex(digest.digest());
     }
 
     /** Delete the jar this listing installed last time, unless it is the file we just wrote. */
