@@ -12,9 +12,3 @@ permissions:
   plugincloset.admin:
     description: Reload config and clear the search cache.
     default: op
-
-commands:
-  plugincloset:
-    description: Browse and install plugins from Modrinth and Hangar.
-    usage: /plugincloset [search <query>|list|reload]
-    aliases: [pcloset, closet]
