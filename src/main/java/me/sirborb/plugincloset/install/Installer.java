@@ -3,6 +3,7 @@ package me.sirborb.plugincloset.install;
 import me.sirborb.plugincloset.PluginCloset;
 import me.sirborb.plugincloset.api.VersionPicker;
 import me.sirborb.plugincloset.gui.BrowseMenu;
+import me.sirborb.plugincloset.gui.Dialogs;
 import me.sirborb.plugincloset.model.Platform;
 import me.sirborb.plugincloset.model.PluginListing;
 import me.sirborb.plugincloset.model.PluginVersionFile;
@@ -24,8 +25,20 @@ public final class Installer {
         this.plugin = plugin;
     }
 
-    /** One click on a listing. Everything here runs off the main thread. */
+    /**
+     * One click on a listing. Goes straight to the download by default, which is the
+     * literal one-click behaviour asked for; {@code require-confirmation: true} inserts a
+     * dialog first for admins who want the safety net.
+     */
     public void begin(BrowseMenu menu, PluginListing listing) {
+        if (plugin.requireConfirmation()) {
+            Dialogs.confirmInstall(plugin, menu, listing, () -> download(menu, listing));
+        } else {
+            download(menu, listing);
+        }
+    }
+
+    private void download(BrowseMenu menu, PluginListing listing) {
         Player player = menu.player();
         Platform platform = RuntimePlatform.current();
         String mcVersion = RuntimePlatform.minecraftVersion();

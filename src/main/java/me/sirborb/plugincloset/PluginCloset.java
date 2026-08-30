@@ -28,6 +28,7 @@ public final class PluginCloset extends JavaPlugin implements Listener {
     private Downloader downloader;
     private Installer installer;
     private SourceClient.Sort defaultSort;
+    private boolean requireConfirmation;
 
     @Override
     public void onEnable() {
@@ -68,6 +69,7 @@ public final class PluginCloset extends JavaPlugin implements Listener {
 
         defaultSort = SourceClient.Sort.parse(
                 config.getString("default-sort"), SourceClient.Sort.RELEVANCE);
+        requireConfirmation = config.getBoolean("require-confirmation", false);
 
         Path pluginsDir = getDataFolder().toPath().getParent();
         downloader = new Downloader(
@@ -95,6 +97,10 @@ public final class PluginCloset extends JavaPlugin implements Listener {
 
     public SourceClient.Sort defaultSort() {
         return defaultSort;
+    }
+
+    public boolean requireConfirmation() {
+        return requireConfirmation;
     }
 
     // --- GUI events ---
