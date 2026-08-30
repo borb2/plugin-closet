@@ -36,7 +36,8 @@ public final class Dialogs {
                 .type(DialogType.confirmation(
                         ActionButton.create(Component.text("Search"), null, 100,
                                 DialogAction.customClick((view, audience) -> {
-                                    String query = view.getString(QUERY_KEY);
+                                    // 26.2 names this getText; older guides say getString.
+                                    String query = view.getText(QUERY_KEY);
                                     onPlayerThread(plugin, player, () -> {
                                         menu.open();
                                         menu.setQuery(query);
