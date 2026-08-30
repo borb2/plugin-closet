@@ -33,10 +33,13 @@ public final class VersionPicker {
      * Newest file declaring exactly {@code mcVersion}; failing that, newest declaring any
      * version on the same major line (26.2 accepts a 26.1 build, which normally runs).
      *
-     * <p>Files with no usable download URL are never picked.
+     * <p>Externally hosted files are never picked. Their URL is populated (it points at
+     * the author's own site), so a null-URL check alone would let a GitHub release *page*
+     * through as if it were a jar.
      */
     public static Pick pick(List<PluginVersionFile> files, String mcVersion) {
         List<PluginVersionFile> usable = files.stream()
+                .filter(f -> !f.external())
                 .filter(f -> f.downloadUrl() != null && !f.downloadUrl().isBlank())
                 .sorted(NEWEST_FIRST)
                 .toList();
