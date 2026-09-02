@@ -56,8 +56,7 @@ Downloads are checksummed where the source publishes a hash (Modrinth always doe
 usually). A mismatch aborts the install.
 
 Some plugins on Hangar aren't hosted there — the "download" is a link to the author's own
-GitHub releases page. Those can't be installed automatically, and PluginCloset will tell you
-so instead of saving a web page as a `.jar`.
+GitHub releases page. Those can't be installed automatically
 
 Nothing is hot-loaded. Plugins activate on the next restart.
 
@@ -71,12 +70,3 @@ Needs JDK 25. The jar lands in `build/libs/`.
 
 `./gradlew selfcheck` runs the tests — they parse recorded Modrinth and Hangar responses
 and check the download path's safety rules.
-
-## Requires
-
-Paper 26.2 or Folia 26.2. Also works on Purpur and other Paper forks. Plain Spigot and
-CraftBukkit are not supported.
-
-## License
-
-MIT
