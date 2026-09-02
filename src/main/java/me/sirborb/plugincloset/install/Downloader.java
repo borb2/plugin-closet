@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.util.HexFormat;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
 
 /**
@@ -36,12 +37,22 @@ public final class Downloader {
     private final Path tmpDir;
     private final String userAgent;
     private final Semaphore slots;
+    private final Executor executor;
 
-    public Downloader(Path pluginsDir, Path tmpDir, String userAgent, int maxConcurrent) {
+    /**
+     * @param executor where the blocking work runs. In the plugin this is backed by
+     *                 {@code Bukkit.getAsyncScheduler()}, which is the only scheduler
+     *                 allowed to block on Folia. It must not be an executor owned by the
+     *                 shared {@link Http} client — the download issues a blocking request,
+     *                 and running that on the client's own pool can starve it.
+     */
+    public Downloader(Path pluginsDir, Path tmpDir, String userAgent, int maxConcurrent,
+                      Executor executor) {
         this.pluginsDir = pluginsDir.toAbsolutePath().normalize();
         this.tmpDir = tmpDir.toAbsolutePath().normalize();
         this.userAgent = userAgent;
         this.slots = new Semaphore(Math.max(1, maxConcurrent));
+        this.executor = executor;
     }
 
     /** Outcome of a completed install. */
@@ -50,9 +61,22 @@ public final class Downloader {
 
     /**
      * Fetch the file and place it in the plugins folder, replacing {@code previousJar} if
-     * given. Runs on the calling thread.
+     * given. All blocking work is handed to the executor, so this returns immediately and
+     * is safe to call from any thread, including a region thread.
      */
-    public Result install(PluginVersionFile file, String previousJar) throws Exception {
+    public CompletableFuture<Result> install(PluginVersionFile file, String previousJar) {
+        CompletableFuture<Result> out = new CompletableFuture<>();
+        executor.execute(() -> {
+            try {
+                out.complete(installBlocking(file, previousJar));
+            } catch (Exception e) {
+                out.completeExceptionally(e);
+            }
+        });
+        return out;
+    }
+
+    private Result installBlocking(PluginVersionFile file, String previousJar) throws Exception {
         if (file.external()) {
             throw new IOException("this version is hosted outside Hangar (" + file.downloadUrl()
                     + ") and may not be a jar at all, so it was not installed");

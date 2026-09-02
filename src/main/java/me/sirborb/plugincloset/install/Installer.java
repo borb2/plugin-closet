@@ -59,16 +59,20 @@ public final class Installer {
                     return plugin.downloader().install(file, previous)
                             .thenApply(result -> new Done(file, pick.match(), result));
                 })
-                .whenComplete((done, error) -> onPlayerThread(player, () -> {
-                    if (error != null) {
-                        player.sendMessage(Component.text("✖ " + listing.name() + ": "
-                                + rootMessage(error), NamedTextColor.RED));
-                        return;
-                    }
-                    record(listing, done);
-                    announce(player, listing, done);
-                    menu.redraw();
-                }));
+                .whenComplete((done, error) -> {
+                    // The manifest write is disk I/O, so it stays off the region thread;
+                    // only the messaging and redraw need the player's own thread.
+                    if (error == null) record(listing, done);
+                    onPlayerThread(player, () -> {
+                        if (error != null) {
+                            player.sendMessage(Component.text("✖ " + listing.name() + ": "
+                                    + rootMessage(error), NamedTextColor.RED));
+                            return;
+                        }
+                        announce(player, listing, done);
+                        menu.redraw();
+                    });
+                });
     }
 
     private record Done(PluginVersionFile file, VersionPicker.Match match, Downloader.Result result) {

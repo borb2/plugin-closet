@@ -2,6 +2,9 @@ name: PluginCloset
 version: '${version}'
 main: me.sirborb.plugincloset.PluginCloset
 api-version: '1.21'
+# Folia refuses to load any plugin that has not explicitly opted in. Earned here: every
+# scheduler call goes through the async or per-entity scheduler, never BukkitScheduler.
+folia-supported: true
 description: Browse and install plugins from Modrinth and Hangar without leaving the game.
 authors: [sirborb]
 

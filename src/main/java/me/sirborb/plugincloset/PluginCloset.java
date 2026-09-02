@@ -11,6 +11,7 @@ import me.sirborb.plugincloset.install.Downloader;
 import me.sirborb.plugincloset.install.InstallManifest;
 import me.sirborb.plugincloset.install.Installer;
 import me.sirborb.plugincloset.platform.RuntimePlatform;
+import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -18,6 +19,7 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.nio.file.Path;
+import java.util.concurrent.Executor;
 import java.time.Duration;
 import java.util.logging.Level;
 
@@ -76,7 +78,8 @@ public final class PluginCloset extends JavaPlugin implements Listener {
                 pluginsDir,
                 getDataFolder().toPath().resolve("tmp"),
                 userAgent,
-                config.getInt("max-concurrent-downloads", 3));
+                config.getInt("max-concurrent-downloads", 3),
+                asyncExecutor());
     }
 
     public PluginIndex index() {
@@ -93,6 +96,14 @@ public final class PluginCloset extends JavaPlugin implements Listener {
 
     public Installer installer() {
         return installer;
+    }
+
+    /**
+     * Bukkit's async scheduler as an {@link Executor}. This is the only scheduler that may
+     * block on Folia, and it is deliberately not the HTTP client's own pool.
+     */
+    public Executor asyncExecutor() {
+        return task -> Bukkit.getAsyncScheduler().runNow(this, ignored -> task.run());
     }
 
     public SourceClient.Sort defaultSort() {
