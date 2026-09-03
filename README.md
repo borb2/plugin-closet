@@ -9,7 +9,7 @@ and [Hangar](https://hangar.papermc.io).
 ![Folia](https://img.shields.io/badge/Folia-supported-green)
 ![Java](https://img.shields.io/badge/Java-25-orange)
 
-Open `plugins/PluginCloset/config.yml` and enter your email or somthing where (you@example.com) modrinth blocks default useragents
+Open `plugins/PluginCloset/config.yml` and enter your email or something where (you@example.com) modrinth blocks default useragents
 
 ```yaml
 sources:
@@ -22,5 +22,4 @@ sources:
 Downloads are checksummed where the source publishes a hash (Modrinth always does, Hangar
 usually). A mismatch aborts the install.
 
-Some plugins on Hangar aren't hosted there — the "download" is a link to the author's own
-GitHub releases page and those can't be installed automatically
+Some plugins on Hangar aren't auctually hosted on Hangar and the download button for that plugin will direct you to something like a Jenkins or Github release page. These sort of plugins cant be downloaded.
