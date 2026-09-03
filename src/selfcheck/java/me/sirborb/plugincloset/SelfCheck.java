@@ -196,6 +196,11 @@ public final class SelfCheck {
         String one = ModrinthClient.facets(EnumSet.of(Platform.PAPER));
         check(one.equals("[[\"project_type:plugin\"],[\"loaders:paper\"]]"));
 
+        // The mod loaders are filterable too, still narrowed to projects Modrinth calls
+        // plugins — a pure Forge mod is not something this menu can install.
+        String neo = ModrinthClient.facets(EnumSet.of(Platform.NEOFORGE));
+        check(neo.equals("[[\"project_type:plugin\"],[\"loaders:neoforge\"]]"));
+
         // Selecting only platforms Modrinth cannot express must not emit an empty OR group.
         String none = ModrinthClient.facets(EnumSet.of(Platform.UNKNOWN));
         check(none.equals("[[\"project_type:plugin\"]]"));
@@ -362,21 +367,17 @@ public final class SelfCheck {
     }
 
     /**
-     * The GUI's text pipeline against the real MiniMessage. Sprites are the reason this
-     * exists: their arguments need quoting, and a quote style that survives YAML is not
-     * obvious. Everything here is what a server owner can legally put in guis/*.yml.
+     * The GUI's text against the real MiniMessage. Sprites are why this exists: their
+     * arguments need quoting, and not every quote style survives YAML.
      */
     private static void miniMessage() {
-        // Plain colour and decoration still resolve, and items are never italic.
-        check(Text.of("<#4ade80>Page 1").children().isEmpty()
-                || !Text.of("<#4ade80>Page 1").children().isEmpty());
-        check(!parses("<#4ade80>Page 1").contains("<"));
-        check(!parses("<b><gradient:#ffba08:#4ade80>Plugin Closet</gradient>").contains("<"));
+        check(parses("<#4ade80>Page 1").equals("Page 1"));
+        check(parses("<b><gradient:#ffba08:#4ade80>Plugin Closet</gradient>").equals("Plugin Closet"));
 
-        // Sprites: single quotes inside the tag, so a double-quoted YAML line still parses.
+        // Single quotes inside the tag, so a double-quoted YAML line still parses.
         check(!parses("<sprite:'minecraft:items':item/porkchop>").contains("sprite"));
         check(!parses("<sprite:items:item/porkchop>").contains("sprite"));
-        // The docs' own form: legal here too, it just needs a single-quoted YAML line.
+        // The docs' own form; it just needs a single-quoted YAML line.
         check(!parses("<sprite:\"minecraft:items\":item/porkchop>").contains("sprite"));
         // An unknown tag stays literal, which is how a typo shows up on the item.
         check(parses("<sprote:items:item/porkchop>").contains("sprote"));
@@ -386,7 +387,7 @@ public final class SelfCheck {
         check(parses(Text.esc("<red>evil</red>")).contains("<red>"));
     }
 
-    /** A component rendered back to plain text, i.e. what a tag actually became. */
+    /** What a tag actually became, as plain text. */
     private static String parses(String mini) {
         return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
                 .plainText().serialize(Text.of(mini));

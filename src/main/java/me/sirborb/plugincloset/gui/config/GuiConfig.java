@@ -54,8 +54,7 @@ public final class GuiConfig {
         if (file.exists()) {
             try {
                 // load(), not loadConfiguration(): the latter swallows a parse error and
-                // hands back an empty config, which opens an empty chest instead of falling
-                // back to the layout below.
+                // returns an empty config, which would open an empty chest.
                 YamlConfiguration yaml = new YamlConfiguration();
                 yaml.load(file);
                 return new MenuSpec(yaml);

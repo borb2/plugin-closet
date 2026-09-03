@@ -17,9 +17,9 @@ import java.util.Set;
 public final class EggIcons {
 
     /**
-     * Display order for a listing's platforms — alphabetical, as the sources list them.
-     * Proxies are deliberately absent: this menu installs server plugins, and a Velocity or
-     * BungeeCord badge on a listing only tells you about a jar you cannot use here.
+     * Every platform the menu shows, alphabetically. The icon rotation, the platforms lore
+     * line and the filter scroll all run off this list. Proxies are left out: a Velocity or
+     * BungeeCord badge only advertises a jar this server cannot use.
      */
     private static final Platform[] ORDER = {
             Platform.BUKKIT, Platform.FABRIC, Platform.FOLIA, Platform.FORGE,
@@ -65,12 +65,9 @@ public final class EggIcons {
         };
     }
 
-    /** The platforms the filter scrolls through, in order. */
+    /** The platforms the filter scrolls through — the same set the icons cover. */
     public static Platform[] filters() {
-        return new Platform[]{
-                Platform.PAPER, Platform.FOLIA, Platform.SPIGOT, Platform.BUKKIT,
-                Platform.PURPUR
-        };
+        return ORDER.clone();
     }
 
     /** A listing's platforms in display order, dropping any this build has no icon for. */

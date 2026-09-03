@@ -145,7 +145,7 @@ public final class InstalledMenu implements ClickableMenu {
         String name = entry != null ? entry.displayName()
                 : loaded != null ? loaded.getName()
                 : file.substring(0, file.length() - ".jar".length());
-        // Blank values drop their lore line, which is how unknown jars stay tidy.
+        // A blank value drops its lore line, so unknown jars simply show less.
         String version = entry != null ? entry.installedVersion()
                 : loaded != null ? loaded.getPluginMeta().getVersion()
                 : "";
@@ -219,7 +219,7 @@ public final class InstalledMenu implements ClickableMenu {
         if (loaded == null) {
             return installed.isAfter(plugin.startedAt()) ? Status.PENDING : Status.BROKEN;
         }
-        // It is running. Only a known source can turn that into "but there is a newer one".
+        // Running. Only a known source can say whether something newer exists.
         if (entry == null) return Status.OK;
         String newest = latest.get(entry.key());
         if (newest == null || newest.isEmpty()) return Status.OK;

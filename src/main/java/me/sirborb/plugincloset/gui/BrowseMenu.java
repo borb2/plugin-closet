@@ -46,7 +46,7 @@ public final class BrowseMenu implements ClickableMenu {
     private int page;
     private List<PluginListing> results = List.of();
     private boolean loading;
-    /** Ticks the rotating platform icons; one step per ROTATE_TICKS while open. */
+    /** Which icon a multi-platform listing is currently showing. */
     private int spin;
     /** Slot to item key for what is currently drawn; the click map, rebuilt every render. */
     private Map<Integer, String> layout = Map.of();
@@ -73,8 +73,7 @@ public final class BrowseMenu implements ClickableMenu {
         render();
         player.openInventory(inventory);
         refresh();
-        // Self-cancelling rather than hooked to InventoryCloseEvent: the menu already owns
-        // its own state, and this way there is nothing to unregister if the player quits.
+        // Self-cancelling, so there is no close event to listen for and nothing to clean up.
         player.getScheduler().runAtFixedRate(plugin, task -> {
             if (player.getOpenInventory().getTopInventory() != inventory) {
                 task.cancel();
@@ -190,7 +189,7 @@ public final class BrowseMenu implements ClickableMenu {
         layout = spec.render(inventory, placeholders(), log());
     }
 
-    /** Just the result grid. Redrawn on its own to rotate the platform icons. */
+    /** Just the result grid, redrawn on its own to rotate the icons. */
     private void renderListings() {
         ItemSpec listing = spec.item("listing");
         for (int i = 0; i < listingSlots.length; i++) {
@@ -278,20 +277,18 @@ public final class BrowseMenu implements ClickableMenu {
     }
 
     /**
-     * Every platform in its own colour, bullet-separated and wrapped: the %platforms% lore
-     * line. Width counts the names only — the colour tags are not on screen.
+     * The %platforms% line: every platform in its own colour, bullet-separated and
+     * wrapped. Width counts the names only; the colour tags are not on screen.
      */
     static String platformList(Set<Platform> platforms, int width) {
         StringBuilder out = new StringBuilder();
         int len = 0;
         for (Platform p : EggIcons.ordered(platforms)) {
             String name = p.display();
-            if (len == 0) {
-                // nothing on this line yet
-            } else if (len + 3 + name.length() > width) {
+            if (len > 0 && len + 3 + name.length() > width) {
                 out.append('\n');
                 len = 0;
-            } else {
+            } else if (len > 0) {
                 out.append("<white> • ");
                 len += 3;
             }
