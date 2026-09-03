@@ -1,0 +1,169 @@
+# The browse menu. Every item below is yours to change.
+#
+# Item keys drive behaviour, not slot numbers: whatever slot you give "search" becomes the
+# search button. Delete an item to remove it. Add your own keys for pure decoration.
+#
+# Fields any item accepts:
+#   material, amount, name, lore, slot / slots ("45", "0-35", "36-44,53")
+#   enchantments ["sharpness:5"], glow, item-flags ["HIDE_ATTRIBUTES"]
+#   attributes ["attack_damage:5:add_number:hand"]  (name:amount[:operation[:slot-group]])
+#   custom-model-data, item-model, damage, unbreakable, hide-tooltip
+#   color "#ff0000" (leather), skull-owner, skull-texture (base64)
+#   show-if: "%placeholder%"  — hides the item when the placeholder is empty or false
+#
+# Items are drawn in the order they appear below, so a later item wins an overlapping slot
+# — that is how the buttons sit on top of the filler strip. Clicks answer to whichever item
+# is actually visible in the slot.
+#
+# Text is MiniMessage: <#ffba08>, <b>, <gradient:...>. A lore line containing a placeholder
+# that resolves to nothing is dropped, so conditional lines need no extra syntax.
+#
+# Placeholders here: %query% %query_empty% %sort% %sort_list% %platform% %platform_list%
+# %platform_icon% %platform_note% %page% %has_prev% %has_next% %installed_count%
+# %mc_version% %compat% %compat_off% %loading% %no_results% — and on the listing template: %name% %icon% %authors%
+# %description% %downloads% %follows% %updated% %latest% %mc% %platforms% %source%
+# %installed_version%
+#
+# The listing icon is whichever platform the plugin supports; when it supports several the
+# item rotates through them once a second.
+
+title: "<#6e7581>Plugin Closet"
+size: 54
+
+# Formatting of the scroll-select lists inside the sort and platform items.
+options:
+  selected: "<#ffba08>▶ <#ffffff>%option%"
+  normal: "<#6e7581>  %option%"
+
+# Where search results are drawn, and what one result looks like.
+listing-slots: 0-35
+listing:
+  material: "%icon%"
+  name: "<#ffba08>%name%"
+  lore:
+    - "<#565d68>by %authors%"
+    - ""
+    - "<#c9cdd4>%description%"
+    - ""
+    - "<#fbbf24>⬇ %downloads%   <#c084fc>★ %follows%"
+    - "<#6e7581>Updated: <#c9cdd4>%updated%"
+    - "<#6e7581>Latest: <#c9cdd4>%latest%"
+    - "<#6e7581>MC: <#c9cdd4>%mc%"
+    - "<#6e7581>Platforms: %platforms%"
+    - "<#6e7581>Source: <#c9cdd4>%source%"
+    - "\n<#4ade80>✔ Installed %installed_version%"
+    - ""
+    - "<#ffba08>Click to download"
+
+items:
+
+  filler:
+    material: GRAY_STAINED_GLASS_PANE
+    name: ""
+    slots: 36-53
+
+  searching:
+    material: CLOCK
+    name: "<#ffba08>Searching..."
+    slot: 22
+    show-if: "%loading%"
+
+  no-results:
+    material: BARRIER
+    name: "<#6e7581>No results"
+    slot: 22
+    show-if: "%no_results%"
+
+  search:
+    material: OAK_SIGN
+    name: "<#ffba08>Search"
+    slot: 45
+    lore:
+      - "<#6e7581>%query_empty%"
+      - "<#ffffff>“%query%”"
+      - ""
+      - "<#565d68>Click to type a search"
+
+  sort:
+    material: COMPARATOR
+    name: "<#ffba08>Sort: %sort%"
+    slot: 46
+    lore:
+      - "%sort_list%"
+      - ""
+      - "<#565d68>Left-click ▼   Right-click ▲"
+
+  filter:
+    material: "%platform_icon%"
+    name: "<#ffba08>Platform: %platform%"
+    slot: 47
+    glow: "%platform_selected%"
+    lore:
+      - "%platform_list%"
+      - "\n<#565d68>%platform_note%"
+      - ""
+      - "<#565d68>Left-click ▼   Right-click ▲"
+
+  prev:
+    material: ARROW
+    name: "<#ffba08>Previous Page"
+    slot: 48
+    show-if: "%has_prev%"
+
+  prev-off:
+    material: GRAY_DYE
+    name: "<#565d68>Previous Page"
+    slot: 48
+    show-if: "%no_prev%"
+
+  page:
+    material: MAP
+    name: "<#ffba08>Page %page%"
+    slot: 49
+
+  next:
+    material: ARROW
+    name: "<#ffba08>Next Page"
+    slot: 50
+    show-if: "%has_next%"
+
+  next-off:
+    material: GRAY_DYE
+    name: "<#565d68>Next Page"
+    slot: 50
+    show-if: "%no_next%"
+
+  installed:
+    material: COMMAND_BLOCK
+    name: "<#ffba08>Installed Plugins"
+    slot: 51
+    lore:
+      - ""
+      - "<#565d68>Click to review and check for updates"
+
+  compat-off:
+    material: GRAY_DYE
+    name: "<#6e7581>Any Version"
+    slot: 52
+    show-if: "%compat_off%"
+    lore:
+      - "<#565d68>Showing plugins for every"
+      - "<#565d68>Minecraft version."
+      - ""
+      - "<#ffba08>Click to show only %mc_version%"
+
+  compat:
+    material: LIME_DYE
+    name: "<#ffba08>Only %mc_version%"
+    slot: 52
+    show-if: "%compat%"
+    lore:
+      - "<#565d68>Hiding plugins with no build"
+      - "<#565d68>for this server's version."
+      - ""
+      - "<#ffba08>Click to show every version"
+
+  close:
+    material: BARRIER
+    name: "<#f87171>Close"
+    slot: 53

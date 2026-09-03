@@ -46,6 +46,20 @@ button (relevance, downloads, followers, newest, recently updated) and the searc
 Clicking a plugin downloads it immediately. If you'd rather confirm first, set
 `require-confirmation: true` in the config.
 
+## Customising the menus
+
+Every item in both menus lives in `plugins/PluginCloset/guis/` — `browse.yml` and
+`installed.yml`, written out on first run and matching the built-in look exactly. Change the
+material, name, lore, slot, amount, enchantments, item flags, attribute modifiers, custom
+model data, dye colour, skull texture, glow, unbreakable or hide-tooltip on any of them; move
+items to different slots, delete the ones you do not want, or add your own decoration.
+
+Behaviour follows the item key, not the slot, so `search`, `sort`, `filter`, `prev`, `next`,
+`installed`, `close`, `back` and `refresh` keep working wherever you put them. Text is
+MiniMessage, and `%placeholders%` are listed in the header of each file. A lore line whose
+placeholder is empty is dropped, so conditional lines need nothing extra. `/plugincloset
+reload` picks up edits.
+
 It picks the build matching your exact Minecraft version. If there isn't one, it falls back
 to the newest build on the same major line and tells you it did that, rather than quietly
 installing something that might not run.

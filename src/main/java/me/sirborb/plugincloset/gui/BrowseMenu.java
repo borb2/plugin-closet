@@ -2,25 +2,28 @@ package me.sirborb.plugincloset.gui;
 
 import me.sirborb.plugincloset.PluginCloset;
 import me.sirborb.plugincloset.api.SourceClient;
+import me.sirborb.plugincloset.gui.config.ItemSpec;
+import me.sirborb.plugincloset.gui.config.MenuSpec;
+import me.sirborb.plugincloset.gui.config.Slots;
 import me.sirborb.plugincloset.install.InstallManifest;
 import me.sirborb.plugincloset.model.Platform;
 import me.sirborb.plugincloset.model.PluginListing;
-import net.kyori.adventure.text.Component;
+import me.sirborb.plugincloset.platform.RuntimePlatform;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 /**
- * The browse GUI: a 54-slot chest, 36 listing slots and a control strip along the bottom.
+ * The browse GUI. Layout, text and every item property come from {@code guis/browse.yml};
+ * this class only supplies state and the placeholders that go with it.
  *
  * <p>ponytail: the menu *is* the {@link ClickableMenu}, so each open menu carries its own
  * state and the click listener recovers it with one instanceof. No UUID map, and nothing to
@@ -28,21 +31,13 @@ import java.util.Set;
  */
 public final class BrowseMenu implements ClickableMenu {
 
-    public static final int LISTING_SLOTS = 36;
-
-    // Bottom row. Everything from 36 up is filled first, so the controls read as one strip
-    // rather than floating in an empty half of the chest.
-    private static final int SLOT_SEARCH = 45;
-    private static final int SLOT_SORT = 46;
-    private static final int SLOT_FILTER = 47;
-    private static final int SLOT_PREV = 48;
-    private static final int SLOT_PAGE = 49;
-    private static final int SLOT_NEXT = 50;
-    private static final int SLOT_INSTALLED = 51;
-    private static final int SLOT_CLOSE = 53;
+    /** How long each platform icon is shown before the next one. */
+    private static final long ROTATE_TICKS = 100L;
 
     private final PluginCloset plugin;
     private final Player player;
+    private final MenuSpec spec;
+    private final int[] listingSlots;
     private final Inventory inventory;
 
     private String query = "";
@@ -50,15 +45,24 @@ public final class BrowseMenu implements ClickableMenu {
     /** Index into {@link EggIcons#filters()}; -1 means every platform. */
     private int filter = -1;
     private int page;
+    /** The page as fetched, before the compatibility filter. Paging counts these. */
+    private List<PluginListing> fetched = List.of();
     private List<PluginListing> results = List.of();
+    /** Hide anything without a build for the running MC version. */
+    private boolean compatOnly;
     private boolean loading;
+    /** Ticks the rotating platform icons; one step per ROTATE_TICKS while open. */
+    private int spin;
+    /** Slot to item key for what is currently drawn; the click map, rebuilt every render. */
+    private Map<Integer, String> layout = Map.of();
 
     public BrowseMenu(PluginCloset plugin, Player player) {
         this.plugin = plugin;
         this.player = player;
+        this.spec = plugin.guis().menu("browse");
+        this.listingSlots = Slots.parse(spec.string("listing-slots", "0-35"));
         this.sort = plugin.defaultSort();
-        this.inventory = Bukkit.createInventory(this, 54,
-                Text.of("<b><" + Text.ACCENT + ">Plugin Closet"));
+        this.inventory = Bukkit.createInventory(this, spec.size(), spec.title(Map.of()));
     }
 
     @Override
@@ -74,51 +78,75 @@ public final class BrowseMenu implements ClickableMenu {
         render();
         player.openInventory(inventory);
         refresh();
+        // Self-cancelling rather than hooked to InventoryCloseEvent: the menu already owns
+        // its own state, and this way there is nothing to unregister if the player quits.
+        player.getScheduler().runAtFixedRate(plugin, task -> {
+            if (player.getOpenInventory().getTopInventory() != inventory) {
+                task.cancel();
+                return;
+            }
+            spin++;
+            renderListings();
+        }, null, ROTATE_TICKS, ROTATE_TICKS);
     }
 
     // --- click handling, dispatched from PluginCloset's listener ---
 
     @Override
     public void onClick(int slot, boolean right) {
-        if (slot < 0 || slot >= 54) return;
+        if (slot < 0 || slot >= inventory.getSize()) return;
 
-        if (slot < LISTING_SLOTS) {
-            if (slot < results.size()) plugin.installer().begin(this, results.get(slot));
+        int index = listingIndex(slot);
+        if (index >= 0) {
+            if (index < results.size()) plugin.installer().begin(this, results.get(index));
             return;
         }
-        switch (slot) {
-            case SLOT_FILTER -> {
+        switch (layout.getOrDefault(slot, "")) {
+            case "filter" -> {
                 filter = Lore.cycle(filter, EggIcons.filters().length, right);
                 page = 0;
                 refresh();
             }
-            case SLOT_SORT -> {
+            case "sort" -> {
                 sort = right ? sort.prev() : sort.next();
                 page = 0;
                 refresh();
             }
-            case SLOT_SEARCH -> Dialogs.search(plugin, this);
-            case SLOT_PREV -> {
+            case "search" -> Dialogs.search(plugin, this);
+            case "compat", "compat-off" -> {
+                compatOnly = !compatOnly;
+                applyFilter();
+                render();
+            }
+            case "prev", "prev-off" -> {
                 if (page > 0) {
                     page--;
                     refresh();
                 }
             }
-            case SLOT_NEXT -> {
+            case "next", "next-off" -> {
                 // No total count from either API, so "next" is offered while the page is full.
-                if (results.size() >= LISTING_SLOTS) {
+                if (fetched.size() >= listingSlots.length) {
                     page++;
                     refresh();
                 }
             }
             // Next tick, never inside the click event: opening an inventory while the
             // server is still resolving the old one is how ghost items happen.
-            case SLOT_INSTALLED -> onPlayerThread(() -> new InstalledMenu(plugin, player).open());
-            case SLOT_CLOSE -> player.closeInventory();
+            case "installed" -> onPlayerThread(() -> new InstalledMenu(plugin, player).open());
+            case "close" -> player.closeInventory();
             default -> {
-                // page indicator and filler: nothing to do
+                // decoration: nothing to do
             }
         }
+    }
+
+    /** Which search result a slot holds, or -1 if the slot is not part of the grid. */
+    private int listingIndex(int slot) {
+        for (int i = 0; i < listingSlots.length; i++) {
+            if (listingSlots[i] == slot) return i;
+        }
+        return -1;
     }
 
     public void setQuery(String query) {
@@ -137,18 +165,31 @@ public final class BrowseMenu implements ClickableMenu {
     private void refresh() {
         loading = true;
         render();
-        plugin.index().search(query, sort, selected(), page, LISTING_SLOTS)
+        plugin.index().search(query, sort, selected(), page, listingSlots.length)
                 .whenComplete((listings, error) -> onPlayerThread(() -> {
                     loading = false;
                     if (error != null) {
-                        results = List.of();
+                        fetched = List.of();
                         player.sendMessage(Text.chat("<" + Text.RED + ">Search failed: "
                                 + Text.esc(rootMessage(error))));
                     } else {
-                        results = listings;
+                        fetched = listings;
                     }
+                    applyFilter();
                     render();
                 }));
+    }
+
+    /**
+     * Drop listings with no build for the running MC version. Client-side, like Hangar's
+     * multi-platform filter: neither source can express "compatible with X" in a way both
+     * agree on, so a filtered page is simply shorter than a full one.
+     */
+    private void applyFilter() {
+        String mc = RuntimePlatform.minecraftVersion();
+        results = compatOnly
+                ? fetched.stream().filter(l -> l.supportedMcVersions().contains(mc)).toList()
+                : fetched;
     }
 
     /** The filter as the index expects it: empty for "all", otherwise the one platform. */
@@ -168,154 +209,122 @@ public final class BrowseMenu implements ClickableMenu {
 
     private void render() {
         inventory.clear();
-        for (int i = 0; i < LISTING_SLOTS; i++) {
-            if (loading) {
-                inventory.setItem(i, i == 22
-                        ? Items.simple(Material.CLOCK, Text.ACCENT, "Searching...")
-                        : null);
-            } else if (i < results.size()) {
-                inventory.setItem(i, listingItem(results.get(i)));
-            }
-        }
-        if (!loading && results.isEmpty()) {
-            inventory.setItem(22, Items.simple(Material.BARRIER, Text.MUTED, "No results"));
-        }
-
-        for (int i = LISTING_SLOTS; i < 54; i++) {
-            inventory.setItem(i, Items.filler());
-        }
-        boolean hasPrev = page > 0;
-        boolean hasNext = results.size() >= LISTING_SLOTS;
-        inventory.setItem(SLOT_SEARCH, searchItem());
-        inventory.setItem(SLOT_SORT, sortItem());
-        inventory.setItem(SLOT_FILTER, filterItem());
-        inventory.setItem(SLOT_PREV, Items.simple(hasPrev ? Material.ARROW : Material.GRAY_DYE,
-                hasPrev ? Text.ACCENT : Text.DIM, "Previous Page"));
-        inventory.setItem(SLOT_PAGE, Items.simple(Material.MAP, Text.ACCENT, "Page " + (page + 1)));
-        inventory.setItem(SLOT_NEXT, Items.simple(hasNext ? Material.ARROW : Material.GRAY_DYE,
-                hasNext ? Text.ACCENT : Text.DIM, "Next Page"));
-        inventory.setItem(SLOT_INSTALLED, installedItem());
-        inventory.setItem(SLOT_CLOSE, Items.simple(Material.BARRIER, Text.RED, "Close"));
+        renderListings();
+        layout = spec.render(inventory, placeholders(), log());
     }
 
-    private ItemStack listingItem(PluginListing listing) {
-        ItemStack item = new ItemStack(EggIcons.forListing(listing.platforms()));
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(Text.line(Text.ACCENT, listing.name()));
+    /** Just the result grid. Redrawn on its own to rotate the platform icons. */
+    private void renderListings() {
+        ItemSpec listing = spec.item("listing");
+        for (int i = 0; i < listingSlots.length; i++) {
+            int slot = listingSlots[i];
+            if (loading || listing == null || i >= results.size()
+                    || slot < 0 || slot >= inventory.getSize()) {
+                continue;
+            }
+            inventory.setItem(slot, listing.build(listingPlaceholders(results.get(i)), log()));
+        }
+    }
 
-        List<Component> lore = new ArrayList<>();
-        if (!listing.authors().isEmpty()) {
-            lore.add(Text.line(Text.DIM, "by " + String.join(", ", listing.authors())));
-        }
-        lore.add(Component.empty());
-        for (String line : Lore.wrap(listing.description(), 40)) {
-            lore.add(Text.line(Text.BODY, line));
-        }
-        lore.add(Component.empty());
-        lore.add(Text.of("<" + Text.YELLOW + ">⬇ " + Lore.downloads(listing.downloads())
-                + "   <" + Text.PINK + ">★ " + Lore.downloads(listing.follows())));
-        lore.add(field("Updated", Lore.relative(listing.dateUpdated())));
+    private Map<String, String> placeholders() {
+        Platform[] all = EggIcons.filters();
+        Platform current = filter < 0 ? null : all[filter];
+        boolean hasPrev = page > 0;
+        boolean hasNext = fetched.size() >= listingSlots.length;
+
+        List<String> platforms = new ArrayList<>();
+        platforms.add("All");
+        for (Platform p : all) platforms.add(p.display());
+
+        List<String> sorts = new ArrayList<>();
+        for (SourceClient.Sort s : SourceClient.Sort.values()) sorts.add(s.display());
+
+        Map<String, String> ph = new HashMap<>();
+        ph.put("query", Text.esc(query));
+        ph.put("query_empty", query.isEmpty() ? "Showing everything" : "");
+        ph.put("sort", sort.display());
+        ph.put("sort_list", spec.optionList(sorts, sort.ordinal()));
+        ph.put("platform", current == null ? "All" : current.display());
+        ph.put("platform_list", spec.optionList(platforms, filter + 1));
+        ph.put("platform_icon", current == null
+                ? spec.string("filter-all-material", Material.CHEST.name())
+                : EggIcons.of(current).name());
+        ph.put("platform_selected", current == null ? "" : "true");
+        ph.put("platform_note",
+                current != null && current.hangarName() == null ? "Modrinth only" : "");
+        ph.put("page", Integer.toString(page + 1));
+        ph.put("has_prev", hasPrev ? "true" : "");
+        ph.put("no_prev", hasPrev ? "" : "true");
+        ph.put("has_next", hasNext ? "true" : "");
+        ph.put("no_next", hasNext ? "" : "true");
+        ph.put("installed_count", Integer.toString(plugin.manifest().all().size()));
+        ph.put("mc_version", RuntimePlatform.minecraftVersion());
+        ph.put("compat", compatOnly ? "true" : "");
+        ph.put("compat_off", compatOnly ? "" : "true");
+        ph.put("loading", loading ? "true" : "");
+        ph.put("no_results", !loading && results.isEmpty() ? "true" : "");
+        return ph;
+    }
+
+    /** Everything one search result can put into its configured name, lore or material. */
+    private Map<String, String> listingPlaceholders(PluginListing listing) {
+        int width = spec.string("description-width", "40").matches("\\d+")
+                ? Integer.parseInt(spec.string("description-width", "40"))
+                : 40;
+
+        Map<String, String> ph = new HashMap<>();
+        ph.put("name", Text.esc(listing.name()));
+        ph.put("icon", EggIcons.forListing(listing.platforms(), spin).name());
+        ph.put("authors", Text.esc(String.join(", ", listing.authors())));
+        ph.put("description", Text.esc(String.join("\n", Lore.wrap(listing.description(), width()))));
+        ph.put("downloads", Lore.downloads(listing.downloads()));
+        ph.put("follows", Lore.downloads(listing.follows()));
+        ph.put("updated", Lore.relative(listing.dateUpdated()));
         // Modrinth's search gives a version *id*, not a label, so that line is simply
-        // omitted rather than showing an opaque id.
-        if (listing.latestVersionLabel() != null) {
-            lore.add(field("Latest", listing.latestVersionLabel()));
-        }
-        lore.add(field("MC", Lore.versions(listing.supportedMcVersions(), 3)));
-        lore.add(field("Source", listing.source().display()));
+        // dropped rather than showing an opaque id.
+        ph.put("latest", Text.esc(listing.latestVersionLabel()));
+        ph.put("mc", Text.esc(Lore.versions(listing.supportedMcVersions(), 3)));
+        ph.put("platforms", platformList(listing.platforms(), width()));
+        ph.put("source", listing.source().display());
 
         Optional<InstallManifest.InstalledEntry> installed = plugin.manifest().get(listing);
-        installed.ifPresent(entry -> {
-            lore.add(Component.empty());
-            lore.add(Text.line(Text.GREEN, "✔ Installed " + entry.installedVersion()));
-        });
+        ph.put("installed_version",
+                installed.map(e -> Text.esc(e.installedVersion())).orElse(""));
+        return ph;
+    }
 
-        lore.add(Component.empty());
-        lore.add(Text.line(Text.ACCENT, "Click to download"));
-        meta.lore(lore);
-        item.setItemMeta(meta);
-        return item;
+    /** Lore wrap column, so a resource pack with a wider font can widen the tooltip. */
+    private int width() {
+        String raw = spec.string("description-width", "40");
+        return raw.matches("\\d+") ? Integer.parseInt(raw) : 40;
+    }
+
+    private java.util.logging.Logger log() {
+        return plugin.getLogger();
     }
 
     /**
-     * One item for the whole platform filter. The lore is the list itself, with the current
-     * entry in white, so a click scrolls it rather than toggling one of eight buttons.
+     * Every platform in its own colour, bullet-separated and wrapped: the %platforms% lore
+     * line. Width counts the names only — the colour tags are not on screen.
      */
-    private ItemStack filterItem() {
-        Platform[] all = EggIcons.filters();
-        Platform current = filter < 0 ? null : all[filter];
-
-        ItemStack item = new ItemStack(current == null ? Material.CHEST : EggIcons.of(current));
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(Text.line(Text.ACCENT,
-                "Platform: " + (current == null ? "All" : title(current.name()))));
-
-        List<Component> lore = new ArrayList<>();
-        lore.add(Items.option("All", current == null));
-        for (Platform p : all) {
-            lore.add(Items.option(title(p.name()), p == current));
+    static String platformList(Set<Platform> platforms, int width) {
+        StringBuilder out = new StringBuilder();
+        int len = 0;
+        for (Platform p : EggIcons.ordered(platforms)) {
+            String name = p.display();
+            if (len == 0) {
+                // nothing on this line yet
+            } else if (len + 3 + name.length() > width) {
+                out.append('\n');
+                len = 0;
+            } else {
+                out.append("<white> • ");
+                len += 3;
+            }
+            out.append('<').append(EggIcons.color(p)).append('>').append(name);
+            len += name.length();
         }
-        if (current != null && current.hangarName() == null) {
-            lore.add(Component.empty());
-            lore.add(Text.line(Text.DIM, "Modrinth only"));
-        }
-        lore.add(Component.empty());
-        lore.add(Items.scrollHint());
-        meta.lore(lore);
-        meta.setEnchantmentGlintOverride(current != null);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    /** Same scroll-select shape as the platform filter, over the sort orders. */
-    private ItemStack sortItem() {
-        ItemStack item = new ItemStack(Material.COMPARATOR);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(Text.line(Text.ACCENT, "Sort: " + sort.display()));
-
-        List<Component> lore = new ArrayList<>();
-        for (SourceClient.Sort s : SourceClient.Sort.values()) {
-            lore.add(Items.option(s.display(), s == sort));
-        }
-        lore.add(Component.empty());
-        lore.add(Items.scrollHint());
-        meta.lore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private ItemStack searchItem() {
-        ItemStack item = new ItemStack(Material.OAK_SIGN);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(Text.line(Text.ACCENT, "Search"));
-        meta.lore(List.of(
-                query.isEmpty()
-                        ? Text.line(Text.MUTED, "Showing everything")
-                        : Text.line(Text.SELECTED, "“" + query + "”"),
-                Component.empty(),
-                Text.line(Text.DIM, "Click to type a search")));
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private ItemStack installedItem() {
-        ItemStack item = new ItemStack(Material.COMMAND_BLOCK);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(Text.line(Text.ACCENT, "Installed Plugins"));
-        meta.lore(List.of(
-                Text.line(Text.BODY, plugin.manifest().all().size()
-                        + " installed by Plugin Closet"),
-                Component.empty(),
-                Text.line(Text.DIM, "Click to review and check for updates")));
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private static Component field(String label, String value) {
-        return Text.of("<" + Text.MUTED + ">" + label + ": <" + Text.BODY + ">" + Text.esc(value));
-    }
-
-    static String title(String enumName) {
-        return enumName.charAt(0) + enumName.substring(1).toLowerCase(Locale.ROOT);
+        return out.toString();
     }
 
     private static String rootMessage(Throwable t) {

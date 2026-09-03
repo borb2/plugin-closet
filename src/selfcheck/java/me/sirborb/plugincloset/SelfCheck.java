@@ -8,6 +8,8 @@ import me.sirborb.plugincloset.api.SearchCache;
 import me.sirborb.plugincloset.api.SourceClient;
 import me.sirborb.plugincloset.api.VersionPicker;
 import me.sirborb.plugincloset.gui.Lore;
+import me.sirborb.plugincloset.gui.config.ItemSpec;
+import me.sirborb.plugincloset.gui.config.Slots;
 import me.sirborb.plugincloset.install.Downloader;
 import me.sirborb.plugincloset.model.Platform;
 import me.sirborb.plugincloset.model.PluginListing;
@@ -52,6 +54,7 @@ public final class SelfCheck {
         cacheKeys();
         filenameSanitising();
         scrollSelects();
+        guiConfig();
 
         System.out.println("SelfCheck: " + checks + " assertions passed.");
     }
@@ -164,7 +167,11 @@ public final class SelfCheck {
     private static void platformMapping() {
         check(Platform.fromModrinthLoader("folia") == Platform.FOLIA);
         check(Platform.fromModrinthLoader("PAPER") == Platform.PAPER);
+        check(Platform.fromModrinthLoader("neoforge") == Platform.NEOFORGE);
+        check(Platform.fromModrinthLoader("quilt") == Platform.QUILT);
         check(Platform.fromModrinthLoader("utility") == Platform.UNKNOWN);
+        check("NeoForge".equals(Platform.NEOFORGE.display()));
+        check("Bukkit".equals(Platform.BUKKIT.display()));
         check(Platform.fromModrinthLoader(null) == Platform.UNKNOWN);
 
         // The correction that matters: Folia asks Hangar for Paper jars.
@@ -327,6 +334,29 @@ public final class SelfCheck {
         }
         check(SourceClient.Sort.RELEVANCE.prev() == SourceClient.Sort.UPDATED);
         check(SourceClient.Sort.UPDATED.next() == SourceClient.Sort.RELEVANCE);
+    }
+
+    /** The two rules the guis/ files depend on: slot ranges, and conditional lore lines. */
+    private static void guiConfig() {
+        check(java.util.Arrays.equals(Slots.parse("45"), new int[]{45}));
+        check(Slots.parse("0-3").length == 4);
+        check(java.util.Arrays.equals(Slots.parse("36-38,53"), new int[]{36, 37, 38, 53}));
+        check(Slots.parse(null).length == 0);
+        check(Slots.parse("nonsense").length == 0);
+
+        Map<String, String> ph = Map.of("name", "Vault", "latest", "", "multi", "a\nb");
+        check("<red>Vault".equals(ItemSpec.fill("<red>%name%", ph)));
+        check(ItemSpec.fill("Latest: %latest%", ph) == null);       // empty value drops the line
+        check("x\nb".equals(ItemSpec.fill("x\nb", ph)));
+        check("a\nb!".equals(ItemSpec.fill("%multi%!", ph)));
+        check("100%".equals(ItemSpec.fill("100%", ph)));
+        check("%unknown%".equals(ItemSpec.fill("%unknown%", ph)));  // left for another plugin
+
+        // Wrapped lore keeps its colour: line two of a description is not vanilla purple.
+        check("<#c9cdd4>".equals(ItemSpec.leadingTags("<#c9cdd4>a long description")));
+        check("<b><red>".equals(ItemSpec.leadingTags("<b><red>x")));
+        check(ItemSpec.leadingTags("plain").isEmpty());
+        check(ItemSpec.leadingTags("<unclosed").isEmpty());
     }
 
     private static boolean throwsOn(Runnable r) {

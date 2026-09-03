@@ -7,6 +7,7 @@ import me.sirborb.plugincloset.api.SearchCache;
 import me.sirborb.plugincloset.api.SourceClient;
 import me.sirborb.plugincloset.command.PluginClosetCommand;
 import me.sirborb.plugincloset.gui.ClickableMenu;
+import me.sirborb.plugincloset.gui.config.GuiConfig;
 import me.sirborb.plugincloset.install.Downloader;
 import me.sirborb.plugincloset.install.InstallManifest;
 import me.sirborb.plugincloset.install.Installer;
@@ -27,6 +28,7 @@ import java.util.logging.Level;
 public final class PluginCloset extends JavaPlugin implements Listener {
 
     private PluginIndex index;
+    private GuiConfig guis;
     private InstallManifest manifest;
     private Downloader downloader;
     private Installer installer;
@@ -75,6 +77,7 @@ public final class PluginCloset extends JavaPlugin implements Listener {
         defaultSort = SourceClient.Sort.parse(
                 config.getString("default-sort"), SourceClient.Sort.RELEVANCE);
         requireConfirmation = config.getBoolean("require-confirmation", false);
+        guis = new GuiConfig(this);
 
         Path pluginsDir = getDataFolder().toPath().getParent();
         downloader = new Downloader(
@@ -83,6 +86,11 @@ public final class PluginCloset extends JavaPlugin implements Listener {
                 userAgent,
                 config.getInt("max-concurrent-downloads", 3),
                 asyncExecutor());
+    }
+
+    /** The editable menu layouts under {@code guis/}. */
+    public GuiConfig guis() {
+        return guis;
     }
 
     public PluginIndex index() {

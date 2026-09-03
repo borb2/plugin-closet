@@ -1,0 +1,95 @@
+# The installed-plugins menu. See guis/browse.yml for the full list of item fields.
+# Every jar in the plugins folder is listed, whether Plugin Closet installed it or not.
+#
+# Placeholders here: %count% %status_counts% %checking% %not_checking% %empty%
+# — and on the entry template: %name% %version% %latest% %source% %file% %installed%
+# %status_material% %status_color% %status_label% %status_detail%
+
+title: "<b><#ffba08>Installed Plugins"
+size: 54
+
+# How each health state looks. Materials and colours are yours; the four keys are not.
+status:
+  ok:
+    material: LIME_DYE
+    color: "#4ade80"
+    label: "Up to date"
+    detail: "Loaded and running the newest build."
+  outdated:
+    material: YELLOW_DYE
+    color: "#fbbf24"
+    label: "Update available"
+    detail: "Reinstall from Browse to update."
+  broken:
+    material: RED_DYE
+    color: "#f87171"
+    label: "Not loading"
+    detail: "The jar is missing or the server refused it."
+  pending:
+    material: LIGHT_BLUE_DYE
+    color: "#60a5fa"
+    label: "Restart to activate"
+    detail: "Downloaded, waiting on a server restart."
+
+# Icon used for every entry while the update check is still running.
+checking-material: CLOCK
+
+entry-slots: 0-35
+entry:
+  material: "%status_material%"
+  name: "<#ffba08>%name%"
+  lore:
+    - "<#6e7581>Version: <#c9cdd4>%version%"
+    - "<#6e7581>Latest: <#fbbf24>%latest%"
+    - "<#6e7581>Source: <#c9cdd4>%source%"
+    - "<#6e7581>File: <#c9cdd4>%file%"
+    - "<#6e7581>Installed: <#c9cdd4>%installed%"
+    - ""
+    - "<%status_color%>● %status_label%"
+    - "<#565d68>%status_detail%"
+
+items:
+
+  filler:
+    material: GRAY_STAINED_GLASS_PANE
+    name: ""
+    slots: 36-53
+
+  nothing:
+    material: BARRIER
+    name: "<#6e7581>Nothing installed yet"
+    slot: 22
+    show-if: "%empty%"
+    lore:
+      - "<#565d68>Plugins you install here will be listed."
+
+  back:
+    material: ARROW
+    name: "<#ffba08>Back to Browse"
+    slot: 45
+
+  summary:
+    material: BOOK
+    name: "<#ffba08>%count% Installed"
+    slot: 49
+    lore:
+      - "%status_counts%"
+
+  refresh:
+    material: SPYGLASS
+    name: "<#ffba08>Check for Updates"
+    slot: 51
+    show-if: "%not_checking%"
+    lore:
+      - "<#565d68>Re-asks Modrinth and Hangar"
+
+  refreshing:
+    material: CLOCK
+    name: "<#6e7581>Checking..."
+    slot: 51
+    show-if: "%checking%"
+
+  close:
+    material: BARRIER
+    name: "<#f87171>Close"
+    slot: 53

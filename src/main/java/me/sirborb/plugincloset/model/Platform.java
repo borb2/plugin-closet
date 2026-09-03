@@ -5,7 +5,7 @@ import java.util.Locale;
 /**
  * A server platform, plus how each source names it.
  *
- * <p>Modrinth knows all nine as loader facets. Hangar's Platform enum is only
+ * <p>Modrinth knows every one of these as a loader facet. Hangar's Platform enum is only
  * PAPER/WATERFALL/VELOCITY — verified against its live OpenAPI spec — so the rest map to
  * null and simply contribute no Hangar results. Notably Hangar has no FOLIA: a Folia
  * server asks Hangar for PAPER jars, which is what {@link #hangarName()} returns.
@@ -19,6 +19,10 @@ public enum Platform {
     BUNGEECORD("bungeecord", null),
     SPONGE("sponge", null),
     PURPUR("purpur", null),
+    FABRIC("fabric", null),
+    FORGE("forge", null),
+    NEOFORGE("neoforge", null),
+    QUILT("quilt", null),
     WATERFALL("waterfall", "WATERFALL"),
     UNKNOWN(null, null);
 
@@ -28,6 +32,15 @@ public enum Platform {
     Platform(String modrinthLoader, String hangarName) {
         this.modrinthLoader = modrinthLoader;
         this.hangarName = hangarName;
+    }
+
+    /** How the platform spells its own name, e.g. NeoForge. */
+    public String display() {
+        return switch (this) {
+            case NEOFORGE -> "NeoForge";
+            case BUNGEECORD -> "BungeeCord";
+            default -> name().charAt(0) + name().substring(1).toLowerCase(Locale.ROOT);
+        };
     }
 
     /** Modrinth loader facet value, or null if this platform has none. */
