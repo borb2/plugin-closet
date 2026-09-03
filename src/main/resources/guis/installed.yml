@@ -5,7 +5,7 @@
 # — and on the entry template: %name% %version% %latest% %source% %file% %installed%
 # %status_material% %status_color% %status_label% %status_detail%
 
-title: "<b><#ffba08>Installed Plugins"
+title: "<#000000>Installed Plugins"
 size: 54
 
 # How each health state looks. Materials and colours are yours; the four keys are not.

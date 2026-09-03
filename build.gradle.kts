@@ -27,6 +27,13 @@ sourceSets {
     }
 }
 
+// Paper ships Adventure at runtime; the self-check needs it on its own classpath to prove
+// the GUI's MiniMessage strings — sprites included — actually parse.
+dependencies {
+    "selfcheckImplementation"("net.kyori:adventure-text-minimessage:5.2.0")
+    "selfcheckImplementation"("net.kyori:adventure-text-serializer-plain:5.2.0")
+}
+
 val selfcheck by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "Runs the parser and sanitizer assertions."

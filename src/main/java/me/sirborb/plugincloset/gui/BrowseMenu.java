@@ -8,7 +8,6 @@ import me.sirborb.plugincloset.gui.config.Slots;
 import me.sirborb.plugincloset.install.InstallManifest;
 import me.sirborb.plugincloset.model.Platform;
 import me.sirborb.plugincloset.model.PluginListing;
-import me.sirborb.plugincloset.platform.RuntimePlatform;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -45,11 +44,7 @@ public final class BrowseMenu implements ClickableMenu {
     /** Index into {@link EggIcons#filters()}; -1 means every platform. */
     private int filter = -1;
     private int page;
-    /** The page as fetched, before the compatibility filter. Paging counts these. */
-    private List<PluginListing> fetched = List.of();
     private List<PluginListing> results = List.of();
-    /** Hide anything without a build for the running MC version. */
-    private boolean compatOnly;
     private boolean loading;
     /** Ticks the rotating platform icons; one step per ROTATE_TICKS while open. */
     private int spin;
@@ -113,11 +108,6 @@ public final class BrowseMenu implements ClickableMenu {
                 refresh();
             }
             case "search" -> Dialogs.search(plugin, this);
-            case "compat", "compat-off" -> {
-                compatOnly = !compatOnly;
-                applyFilter();
-                render();
-            }
             case "prev", "prev-off" -> {
                 if (page > 0) {
                     page--;
@@ -126,7 +116,7 @@ public final class BrowseMenu implements ClickableMenu {
             }
             case "next", "next-off" -> {
                 // No total count from either API, so "next" is offered while the page is full.
-                if (fetched.size() >= listingSlots.length) {
+                if (results.size() >= listingSlots.length) {
                     page++;
                     refresh();
                 }
@@ -169,27 +159,14 @@ public final class BrowseMenu implements ClickableMenu {
                 .whenComplete((listings, error) -> onPlayerThread(() -> {
                     loading = false;
                     if (error != null) {
-                        fetched = List.of();
+                        results = List.of();
                         player.sendMessage(Text.chat("<" + Text.RED + ">Search failed: "
                                 + Text.esc(rootMessage(error))));
                     } else {
-                        fetched = listings;
+                        results = listings;
                     }
-                    applyFilter();
                     render();
                 }));
-    }
-
-    /**
-     * Drop listings with no build for the running MC version. Client-side, like Hangar's
-     * multi-platform filter: neither source can express "compatible with X" in a way both
-     * agree on, so a filtered page is simply shorter than a full one.
-     */
-    private void applyFilter() {
-        String mc = RuntimePlatform.minecraftVersion();
-        results = compatOnly
-                ? fetched.stream().filter(l -> l.supportedMcVersions().contains(mc)).toList()
-                : fetched;
     }
 
     /** The filter as the index expects it: empty for "all", otherwise the one platform. */
@@ -230,7 +207,7 @@ public final class BrowseMenu implements ClickableMenu {
         Platform[] all = EggIcons.filters();
         Platform current = filter < 0 ? null : all[filter];
         boolean hasPrev = page > 0;
-        boolean hasNext = fetched.size() >= listingSlots.length;
+        boolean hasNext = results.size() >= listingSlots.length;
 
         List<String> platforms = new ArrayList<>();
         platforms.add("All");
@@ -258,9 +235,6 @@ public final class BrowseMenu implements ClickableMenu {
         ph.put("has_next", hasNext ? "true" : "");
         ph.put("no_next", hasNext ? "" : "true");
         ph.put("installed_count", Integer.toString(plugin.manifest().all().size()));
-        ph.put("mc_version", RuntimePlatform.minecraftVersion());
-        ph.put("compat", compatOnly ? "true" : "");
-        ph.put("compat_off", compatOnly ? "" : "true");
         ph.put("loading", loading ? "true" : "");
         ph.put("no_results", !loading && results.isEmpty() ? "true" : "");
         return ph;

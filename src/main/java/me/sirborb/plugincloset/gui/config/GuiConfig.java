@@ -53,10 +53,17 @@ public final class GuiConfig {
 
         if (file.exists()) {
             try {
-                return new MenuSpec(YamlConfiguration.loadConfiguration(file));
+                // load(), not loadConfiguration(): the latter swallows a parse error and
+                // hands back an empty config, which opens an empty chest instead of falling
+                // back to the layout below.
+                YamlConfiguration yaml = new YamlConfiguration();
+                yaml.load(file);
+                return new MenuSpec(yaml);
             } catch (Exception e) {
-                plugin.getLogger().log(Level.WARNING,
-                        "guis/" + name + ".yml is invalid; using the built-in layout", e);
+                plugin.getLogger().log(Level.WARNING, "guis/" + name + ".yml did not parse;"
+                        + " using the built-in layout. A MiniMessage tag with quoted"
+                        + " arguments needs a single-quoted line, e.g."
+                        + " '<sprite:\"minecraft:items\":item/porkchop>'.", e);
             }
         }
         try (InputStream in = plugin.getResource(resource)) {

@@ -15,19 +15,30 @@
 # — that is how the buttons sit on top of the filler strip. Clicks answer to whichever item
 # is actually visible in the slot.
 #
-# Text is MiniMessage: <#ffba08>, <b>, <gradient:...>. A lore line containing a placeholder
-# that resolves to nothing is dropped, so conditional lines need no extra syntax.
+# Text is MiniMessage: <#ffba08>, <b>, <gradient:...>, <sprite:...>. A lore line whose
+# placeholder resolves to nothing is dropped, so conditional lines need no extra syntax.
+#
+# YAML decides your quotes, not MiniMessage. A double quote inside a "double-quoted" line
+# ends the line early and the whole file stops parsing, so a tag argument that needs
+# quoting — an atlas like minecraft:items — takes single quotes, or the line does:
+#
+#   - "<sprite:'minecraft:items':item/porkchop>"    <- quote the argument
+#   - '<sprite:"minecraft:items":item/porkchop>'    <- or quote the line
+#   - "<sprite:items:item/porkchop>"                <- or drop the namespace
+#
+# Broken:  - "<sprite:"minecraft:items":item/porkchop>"
 #
 # Placeholders here: %query% %query_empty% %sort% %sort_list% %platform% %platform_list%
 # %platform_icon% %platform_note% %page% %has_prev% %has_next% %installed_count%
-# %mc_version% %compat% %compat_off% %loading% %no_results% — and on the listing template: %name% %icon% %authors%
+# %loading% %no_results% — and on the listing
+# template: %name% %icon% %authors%
 # %description% %downloads% %follows% %updated% %latest% %mc% %platforms% %source%
 # %installed_version%
 #
 # The listing icon is whichever platform the plugin supports; when it supports several the
-# item rotates through them once a second.
+# item rotates through them every five seconds.
 
-title: "<#6e7581>Plugin Closet"
+title: "<#000000>Plugin Closet"
 size: 54
 
 # Formatting of the scroll-select lists inside the sort and platform items.
@@ -116,9 +127,22 @@ items:
     slot: 48
     show-if: "%no_prev%"
 
+
   page:
-    material: MAP
-    name: "<#ffba08>Page %page%"
+    material: KNOWLEDGE_BOOK
+    name: "<#4ade80>Page %page%"
+    lore:
+      - ""
+      - "<#c9cdd4>Server Icons"
+      - "<white>• <sprite:'minecraft:items':item/bucket> <#F6AF7B>Bukkit"
+      - "<white>• <sprite:'minecraft:items':item/field_masoned_banner_pattern> <#DBB69B>Fabric"
+      - "<white>• <#4F7942><sprite:'minecraft:blocks':block/oak_leaves> <#A5E388>Folia"
+      - "<white>• <sprite:'minecraft:blocks':block/anvil> <#959EEF>Forge"
+      - "<white>• <sprite:'minecraft:items':item/fox_spawn_egg> <#F99E6B>NeoForge"
+      - "<white>• <sprite:'minecraft:items':item/paper> <#EEAAAA>Paper"
+      - "<white>• <sprite:'minecraft:blocks':block/purpur_block> <#C3ABF7>Purpur"
+      - "<white>• <sprite:'minecraft:blocks':block/white_wool> <#C796F9>Quilt"
+      - "<white>• <sprite:'minecraft:items':item/brewing_stand> <#F1CC84>Spigot"
     slot: 49
 
   next:
@@ -140,28 +164,6 @@ items:
     lore:
       - ""
       - "<#565d68>Click to review and check for updates"
-
-  compat-off:
-    material: GRAY_DYE
-    name: "<#6e7581>Any Version"
-    slot: 52
-    show-if: "%compat_off%"
-    lore:
-      - "<#565d68>Showing plugins for every"
-      - "<#565d68>Minecraft version."
-      - ""
-      - "<#ffba08>Click to show only %mc_version%"
-
-  compat:
-    material: LIME_DYE
-    name: "<#ffba08>Only %mc_version%"
-    slot: 52
-    show-if: "%compat%"
-    lore:
-      - "<#565d68>Hiding plugins with no build"
-      - "<#565d68>for this server's version."
-      - ""
-      - "<#ffba08>Click to show every version"
 
   close:
     material: BARRIER

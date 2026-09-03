@@ -8,6 +8,7 @@ import me.sirborb.plugincloset.api.SearchCache;
 import me.sirborb.plugincloset.api.SourceClient;
 import me.sirborb.plugincloset.api.VersionPicker;
 import me.sirborb.plugincloset.gui.Lore;
+import me.sirborb.plugincloset.gui.Text;
 import me.sirborb.plugincloset.gui.config.ItemSpec;
 import me.sirborb.plugincloset.gui.config.Slots;
 import me.sirborb.plugincloset.install.Downloader;
@@ -55,6 +56,7 @@ public final class SelfCheck {
         filenameSanitising();
         scrollSelects();
         guiConfig();
+        miniMessage();
 
         System.out.println("SelfCheck: " + checks + " assertions passed.");
     }
@@ -357,6 +359,37 @@ public final class SelfCheck {
         check("<b><red>".equals(ItemSpec.leadingTags("<b><red>x")));
         check(ItemSpec.leadingTags("plain").isEmpty());
         check(ItemSpec.leadingTags("<unclosed").isEmpty());
+    }
+
+    /**
+     * The GUI's text pipeline against the real MiniMessage. Sprites are the reason this
+     * exists: their arguments need quoting, and a quote style that survives YAML is not
+     * obvious. Everything here is what a server owner can legally put in guis/*.yml.
+     */
+    private static void miniMessage() {
+        // Plain colour and decoration still resolve, and items are never italic.
+        check(Text.of("<#4ade80>Page 1").children().isEmpty()
+                || !Text.of("<#4ade80>Page 1").children().isEmpty());
+        check(!parses("<#4ade80>Page 1").contains("<"));
+        check(!parses("<b><gradient:#ffba08:#4ade80>Plugin Closet</gradient>").contains("<"));
+
+        // Sprites: single quotes inside the tag, so a double-quoted YAML line still parses.
+        check(!parses("<sprite:'minecraft:items':item/porkchop>").contains("sprite"));
+        check(!parses("<sprite:items:item/porkchop>").contains("sprite"));
+        // The docs' own form: legal here too, it just needs a single-quoted YAML line.
+        check(!parses("<sprite:\"minecraft:items\":item/porkchop>").contains("sprite"));
+        // An unknown tag stays literal, which is how a typo shows up on the item.
+        check(parses("<sprote:items:item/porkchop>").contains("sprote"));
+        check(!parses("Costs 10 <sprite:'minecraft:items':item/porkchop>!").contains("sprite"));
+
+        // Text out of an API is escaped, so a description can never inject a tag.
+        check(parses(Text.esc("<red>evil</red>")).contains("<red>"));
+    }
+
+    /** A component rendered back to plain text, i.e. what a tag actually became. */
+    private static String parses(String mini) {
+        return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
+                .plainText().serialize(Text.of(mini));
     }
 
     private static boolean throwsOn(Runnable r) {
