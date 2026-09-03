@@ -7,6 +7,7 @@ import me.sirborb.plugincloset.api.PluginIndex;
 import me.sirborb.plugincloset.api.SearchCache;
 import me.sirborb.plugincloset.api.SourceClient;
 import me.sirborb.plugincloset.api.VersionPicker;
+import me.sirborb.plugincloset.gui.Lore;
 import me.sirborb.plugincloset.install.Downloader;
 import me.sirborb.plugincloset.model.Platform;
 import me.sirborb.plugincloset.model.PluginListing;
@@ -50,6 +51,7 @@ public final class SelfCheck {
         merging();
         cacheKeys();
         filenameSanitising();
+        scrollSelects();
 
         System.out.println("SelfCheck: " + checks + " assertions passed.");
     }
@@ -299,6 +301,32 @@ public final class SelfCheck {
         } catch (Exception e) {
             throw new IllegalStateException("could not read fixture " + name, e);
         }
+    }
+
+    /** The scroll-selects: -1 is "All", and both directions must wrap past either end. */
+    private static void scrollSelects() {
+        int n = 8;                                  // as many platforms as the filter offers
+        check(Lore.cycle(-1, n, false) == 0);       // All -> first
+        check(Lore.cycle(0, n, false) == 1);
+        check(Lore.cycle(n - 1, n, false) == -1);   // last -> All, forwards
+        check(Lore.cycle(-1, n, true) == n - 1);    // All -> last, backwards
+        check(Lore.cycle(0, n, true) == -1);
+        check(Lore.cycle(3, n, true) == 2);
+        // Every index round-trips, and a full lap of either direction returns home.
+        for (int i = -1; i < n; i++) {
+            check(Lore.cycle(Lore.cycle(i, n, false), n, true) == i);
+            int forward = i;
+            for (int step = 0; step <= n; step++) forward = Lore.cycle(forward, n, false);
+            check(forward == i);
+        }
+
+        for (SourceClient.Sort sort : SourceClient.Sort.values()) {
+            check(sort.next().prev() == sort);
+            check(sort.prev().next() == sort);
+            check(sort.display() != null && !sort.display().isBlank());
+        }
+        check(SourceClient.Sort.RELEVANCE.prev() == SourceClient.Sort.UPDATED);
+        check(SourceClient.Sort.UPDATED.next() == SourceClient.Sort.RELEVANCE);
     }
 
     private static boolean throwsOn(Runnable r) {

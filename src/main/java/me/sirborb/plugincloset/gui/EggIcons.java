@@ -18,19 +18,19 @@ public final class EggIcons {
         return switch (platform) {
             case FOLIA -> Material.AZALEA_LEAVES;
             case PAPER -> Material.PAPER;
-            case BUKKIT -> Material.WATER_BUCKET;
+            case BUKKIT -> Material.BUCKET;         // the name is the sprite
             case SPIGOT -> Material.LEVER;          // reads as a tap handle
             case VELOCITY -> Material.FEATHER;
             case BUNGEECORD -> Material.TRIPWIRE_HOOK;
             case SPONGE -> Material.SPONGE;
             case PURPUR -> Material.PURPUR_BLOCK;
-            case WATERFALL -> Material.BUCKET;      // plain bucket, so it reads apart from Bukkit
+            case WATERFALL -> Material.WATER_BUCKET;
             case UNKNOWN -> Material.BARRIER;
         };
     }
 
-    /** The platforms offered as filter toggles, in row order. */
-    public static Platform[] filterRow() {
+    /** The platforms the filter scrolls through, in order. */
+    public static Platform[] filters() {
         return new Platform[]{
                 Platform.PAPER, Platform.FOLIA, Platform.SPIGOT, Platform.BUKKIT,
                 Platform.PURPUR, Platform.VELOCITY, Platform.BUNGEECORD, Platform.WATERFALL

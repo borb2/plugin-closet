@@ -111,10 +111,16 @@ public final class PluginIndex {
 
     /** Files for a listing on the given platform, cached. */
     public CompletableFuture<List<PluginVersionFile>> versions(PluginListing listing, Platform platform) {
-        SourceClient client = listing.source() == Source.HANGAR ? hangar : modrinth;
-        String key = SearchCache.versionKey(listing.source().name(), listing.sourceId(), platform);
+        return versions(listing.source(), listing.sourceId(), platform);
+    }
+
+    /** Same, for callers holding a manifest entry rather than a search result. */
+    public CompletableFuture<List<PluginVersionFile>> versions(Source source, String sourceId,
+                                                               Platform platform) {
+        SourceClient client = source == Source.HANGAR ? hangar : modrinth;
+        String key = SearchCache.versionKey(source.name(), sourceId, platform);
         return cache.<CompletableFuture<List<PluginVersionFile>>>get(key,
-                () -> client.getVersions(listing.sourceId(), platform));
+                () -> client.getVersions(sourceId, platform));
     }
 
     private static String rootMessage(Throwable t) {

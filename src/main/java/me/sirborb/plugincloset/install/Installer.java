@@ -4,12 +4,11 @@ import me.sirborb.plugincloset.PluginCloset;
 import me.sirborb.plugincloset.api.VersionPicker;
 import me.sirborb.plugincloset.gui.BrowseMenu;
 import me.sirborb.plugincloset.gui.Dialogs;
+import me.sirborb.plugincloset.gui.Text;
 import me.sirborb.plugincloset.model.Platform;
 import me.sirborb.plugincloset.model.PluginListing;
 import me.sirborb.plugincloset.model.PluginVersionFile;
 import me.sirborb.plugincloset.platform.RuntimePlatform;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
 
 import java.time.Instant;
@@ -43,7 +42,8 @@ public final class Installer {
         Platform platform = RuntimePlatform.current();
         String mcVersion = RuntimePlatform.minecraftVersion();
 
-        player.sendMessage(Component.text("Resolving " + listing.name() + "...", NamedTextColor.GRAY));
+        player.sendMessage(Text.chat(Text.PREFIX + "<" + Text.MUTED + ">Resolving "
+                + Text.esc(listing.name()) + "..."));
 
         plugin.index().versions(listing, platform)
                 .thenCompose(files -> {
@@ -65,8 +65,9 @@ public final class Installer {
                     if (error == null) record(listing, done);
                     onPlayerThread(player, () -> {
                         if (error != null) {
-                            player.sendMessage(Component.text("✖ " + listing.name() + ": "
-                                    + rootMessage(error), NamedTextColor.RED));
+                            player.sendMessage(Text.chat(Text.PREFIX + "<" + Text.RED + ">✖ "
+                                    + Text.esc(listing.name()) + " <" + Text.BODY + ">"
+                                    + Text.esc(rootMessage(error))));
                             return;
                         }
                         announce(player, listing, done);
@@ -80,8 +81,8 @@ public final class Installer {
 
     private void record(PluginListing listing, Done done) {
         plugin.manifest().put(new InstallManifest.InstalledEntry(
-                listing.source(), listing.sourceId(), done.file().versionLabel(),
-                Instant.now(), done.result().fileName()));
+                listing.source(), listing.sourceId(), listing.name(),
+                done.file().versionLabel(), Instant.now(), done.result().fileName()));
         try {
             plugin.manifest().save();
         } catch (Exception e) {
@@ -92,17 +93,18 @@ public final class Installer {
     }
 
     private void announce(Player player, PluginListing listing, Done done) {
-        player.sendMessage(Component.text("✔ Downloaded " + listing.name() + " v"
-                + done.file().versionLabel() + ". Restart the server to activate it.",
-                NamedTextColor.GREEN));
+        player.sendMessage(Text.chat(Text.PREFIX + "<" + Text.GREEN + ">✔ Downloaded <"
+                + Text.SELECTED + ">" + Text.esc(listing.name()) + " v"
+                + Text.esc(done.file().versionLabel()) + "<" + Text.BODY
+                + "> — restart the server to activate it."));
         if (done.match() == VersionPicker.Match.SAME_MAJOR) {
-            player.sendMessage(Component.text("  No build for exactly "
-                    + RuntimePlatform.minecraftVersion() + "; installed one built for "
-                    + String.join(", ", done.file().gameVersions()) + ".", NamedTextColor.YELLOW));
+            player.sendMessage(Text.chat("<" + Text.YELLOW + ">  No build for exactly "
+                    + Text.esc(RuntimePlatform.minecraftVersion()) + "; installed one built for "
+                    + Text.esc(String.join(", ", done.file().gameVersions())) + "."));
         }
         if (!done.result().hashVerified()) {
-            player.sendMessage(Component.text("  The source published no checksum, "
-                    + "so the download could not be verified.", NamedTextColor.YELLOW));
+            player.sendMessage(Text.chat("<" + Text.YELLOW + ">  The source published no "
+                    + "checksum, so the download could not be verified."));
         }
     }
 

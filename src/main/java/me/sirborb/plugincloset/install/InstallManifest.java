@@ -26,10 +26,16 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class InstallManifest {
 
-    public record InstalledEntry(Source source, String sourceId, String installedVersion,
-                                 Instant installedAt, String jarFileName) {
+    public record InstalledEntry(Source source, String sourceId, String pluginName,
+                                 String installedVersion, Instant installedAt,
+                                 String jarFileName) {
         public String key() {
             return source.name() + ":" + sourceId;
+        }
+
+        /** Manifests written before names were stored fall back to something showable. */
+        public String displayName() {
+            return pluginName == null || pluginName.isBlank() ? sourceId : pluginName;
         }
     }
 
@@ -69,6 +75,7 @@ public final class InstallManifest {
             InstalledEntry entry = new InstalledEntry(
                     source,
                     sourceId,
+                    Json.str(e, "name"),
                     Json.str(e, "installedVersion"),
                     parseInstant(Json.str(e, "installedAt")),
                     Json.str(e, "jarFileName"));
@@ -83,6 +90,7 @@ public final class InstallManifest {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("source", e.source().name());
             m.put("sourceId", e.sourceId());
+            m.put("name", e.displayName());
             m.put("installedVersion", e.installedVersion());
             m.put("installedAt", e.installedAt().toString());
             m.put("jarFileName", e.jarFileName());

@@ -31,6 +31,10 @@ public interface SourceClient {
             return values()[(ordinal() + 1) % values().length];
         }
 
+        public Sort prev() {
+            return values()[(ordinal() - 1 + values().length) % values().length];
+        }
+
         public static Sort parse(String name, Sort fallback) {
             if (name == null) return fallback;
             for (Sort s : values()) {

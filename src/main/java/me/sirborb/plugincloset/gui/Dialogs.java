@@ -9,7 +9,6 @@ import io.papermc.paper.registry.data.dialog.input.DialogInput;
 import io.papermc.paper.registry.data.dialog.type.DialogType;
 import me.sirborb.plugincloset.PluginCloset;
 import me.sirborb.plugincloset.model.PluginListing;
-import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickCallback;
 import org.bukkit.entity.Player;
 
@@ -32,11 +31,11 @@ public final class Dialogs {
     public static void search(PluginCloset plugin, BrowseMenu menu) {
         Player player = menu.player();
         Dialog dialog = Dialog.create(builder -> builder.empty()
-                .base(DialogBase.builder(Component.text("Search plugins"))
-                        .inputs(List.of(DialogInput.text(QUERY_KEY, Component.text("Search")).build()))
+                .base(DialogBase.builder(Text.of("<b><" + Text.ACCENT + ">Search plugins"))
+                        .inputs(List.of(DialogInput.text(QUERY_KEY, Text.line(Text.BODY, "Search")).build()))
                         .build())
                 .type(DialogType.confirmation(
-                        ActionButton.create(Component.text("Search"), null, 100,
+                        ActionButton.create(Text.line(Text.ACCENT, "Search"), null, 100,
                                 DialogAction.customClick((view, audience) -> {
                                     // 26.2 names this getText; older guides say getString.
                                     String query = view.getText(QUERY_KEY);
@@ -45,7 +44,7 @@ public final class Dialogs {
                                         menu.setQuery(query);
                                     });
                                 }, ClickCallback.Options.builder().build())),
-                        ActionButton.create(Component.text("Cancel"), null, 100,
+                        ActionButton.create(Text.line(Text.MUTED, "Cancel"), null, 100,
                                 DialogAction.customClick((view, audience) ->
                                         onPlayerThread(plugin, player, menu::open),
                                         ClickCallback.Options.builder().build())))));
@@ -63,22 +62,24 @@ public final class Dialogs {
                                       PluginListing listing, Runnable onConfirm) {
         Player player = menu.player();
         Dialog dialog = Dialog.create(builder -> builder.empty()
-                .base(DialogBase.builder(Component.text("Install " + listing.name() + "?"))
+                .base(DialogBase.builder(Text.of("<b><" + Text.ACCENT + ">Install "
+                        + Text.esc(listing.name()) + "?"))
                         .body(List.of(
-                                DialogBody.plainMessage(Component.text(
+                                DialogBody.plainMessage(Text.line(Text.BODY,
                                         "From " + listing.source().display()
-                                                + " - it will be active after a restart.")),
-                                DialogBody.plainMessage(Component.text(listing.description()))))
+                                                + " — active after a restart.")),
+                                DialogBody.plainMessage(Text.line(Text.MUTED,
+                                        listing.description()))))
                         .build())
                 .type(DialogType.confirmation(
-                        ActionButton.create(Component.text("Install"), null, 100,
+                        ActionButton.create(Text.line(Text.GREEN, "Install"), null, 100,
                                 DialogAction.customClick((view, audience) -> {
                                     onPlayerThread(plugin, player, () -> {
                                         menu.open();
                                         onConfirm.run();
                                     });
                                 }, ClickCallback.Options.builder().build())),
-                        ActionButton.create(Component.text("Cancel"), null, 100,
+                        ActionButton.create(Text.line(Text.MUTED, "Cancel"), null, 100,
                                 DialogAction.customClick((view, audience) ->
                                         onPlayerThread(plugin, player, menu::open),
                                         ClickCallback.Options.builder().build())))));

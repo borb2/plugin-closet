@@ -5,9 +5,8 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import me.sirborb.plugincloset.PluginCloset;
 import me.sirborb.plugincloset.gui.BrowseMenu;
+import me.sirborb.plugincloset.gui.Text;
 import me.sirborb.plugincloset.install.InstallManifest;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -55,12 +54,12 @@ public final class PluginClosetCommand implements BasicCommand {
 
         if (sub.equals("reload")) {
             if (!sender.hasPermission("plugincloset.admin")) {
-                sender.sendMessage(Component.text("You lack plugincloset.admin.", NamedTextColor.RED));
+                sender.sendMessage(Text.chat(Text.PREFIX + "<" + Text.RED + ">You lack plugincloset.admin."));
                 return;
             }
             plugin.index().cache().clear();
             plugin.reload();
-            sender.sendMessage(Component.text("Config reloaded and cache cleared.", NamedTextColor.GREEN));
+            sender.sendMessage(Text.chat(Text.PREFIX + "<" + Text.GREEN + ">Config reloaded and cache cleared."));
             return;
         }
 
@@ -70,8 +69,8 @@ public final class PluginClosetCommand implements BasicCommand {
         }
 
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("The browser is in-game only. Try /plugincloset list.",
-                    NamedTextColor.RED));
+            sender.sendMessage(Text.chat(Text.PREFIX + "<" + Text.RED + ">"
+                    + "The browser is in-game only. Try /plugincloset list."));
             return;
         }
 
@@ -95,16 +94,15 @@ public final class PluginClosetCommand implements BasicCommand {
     private void sendInstalled(CommandSender sender) {
         List<InstallManifest.InstalledEntry> entries = plugin.manifest().all();
         if (entries.isEmpty()) {
-            sender.sendMessage(Component.text("PluginCloset has not installed anything yet.",
-                    NamedTextColor.GRAY));
+            sender.sendMessage(Text.chat(Text.PREFIX + "<" + Text.MUTED + ">Nothing installed yet."));
             return;
         }
-        sender.sendMessage(Component.text("Installed by PluginCloset:", NamedTextColor.GOLD));
+        sender.sendMessage(Text.chat("<b><" + Text.ACCENT + ">Installed by Plugin Closet"));
         for (InstallManifest.InstalledEntry e : entries) {
-            sender.sendMessage(Component.text("  " + e.sourceId() + " v" + e.installedVersion(),
-                            NamedTextColor.WHITE)
-                    .append(Component.text("  (" + e.source().display() + ", " + e.jarFileName() + ")",
-                            NamedTextColor.DARK_GRAY)));
+            sender.sendMessage(Text.chat("<" + Text.SELECTED + ">  " + Text.esc(e.displayName())
+                    + " <" + Text.BODY + ">v" + Text.esc(e.installedVersion())
+                    + " <" + Text.DIM + ">(" + Text.esc(e.source().display()) + ", "
+                    + Text.esc(e.jarFileName()) + ")"));
         }
     }
 }

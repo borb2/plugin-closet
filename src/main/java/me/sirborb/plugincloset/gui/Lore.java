@@ -5,10 +5,19 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Small formatting helpers for listing lore. ponytail: one class, not one per format. */
+/** Small pure helpers for the menus. ponytail: one class, not one per format. */
 public final class Lore {
 
     private Lore() {
+    }
+
+    /**
+     * Advance a scroll-select index that runs over {@code -1 .. size-1}, where -1 is the
+     * "All" entry, wrapping past either end. Pure so it can be asserted without a server.
+     */
+    public static int cycle(int index, int size, boolean back) {
+        int n = size + 1;                       // the "All" slot plus one per entry
+        return ((index + 1 + (back ? -1 : 1)) % n + n) % n - 1;
     }
 
     /** 1234 -> "1.2K", 10250865 -> "10.3M". */

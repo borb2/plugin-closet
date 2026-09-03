@@ -6,7 +6,7 @@ import me.sirborb.plugincloset.api.PluginIndex;
 import me.sirborb.plugincloset.api.SearchCache;
 import me.sirborb.plugincloset.api.SourceClient;
 import me.sirborb.plugincloset.command.PluginClosetCommand;
-import me.sirborb.plugincloset.gui.BrowseMenu;
+import me.sirborb.plugincloset.gui.ClickableMenu;
 import me.sirborb.plugincloset.install.Downloader;
 import me.sirborb.plugincloset.install.InstallManifest;
 import me.sirborb.plugincloset.install.Installer;
@@ -21,6 +21,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.nio.file.Path;
 import java.util.concurrent.Executor;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.logging.Level;
 
 public final class PluginCloset extends JavaPlugin implements Listener {
@@ -31,9 +32,11 @@ public final class PluginCloset extends JavaPlugin implements Listener {
     private Installer installer;
     private SourceClient.Sort defaultSort;
     private boolean requireConfirmation;
+    private Instant startedAt;
 
     @Override
     public void onEnable() {
+        startedAt = Instant.now();
         saveDefaultConfig();
         reload();
 
@@ -90,6 +93,19 @@ public final class PluginCloset extends JavaPlugin implements Listener {
         return manifest;
     }
 
+    /** The server's plugins folder, i.e. the parent of this plugin's own data folder. */
+    public Path pluginsDir() {
+        return getDataFolder().toPath().toAbsolutePath().normalize().getParent();
+    }
+
+    /**
+     * When this plugin enabled. A jar installed after this cannot have been loaded yet, so
+     * the installed-plugins menu can tell "waiting for a restart" from "refused to load".
+     */
+    public Instant startedAt() {
+        return startedAt;
+    }
+
     public Downloader downloader() {
         return downloader;
     }
@@ -119,15 +135,15 @@ public final class PluginCloset extends JavaPlugin implements Listener {
     @EventHandler
     public void onClick(InventoryClickEvent event) {
         // Cancel first, ask questions later: nothing in this menu is ever takeable.
-        if (!(event.getInventory().getHolder() instanceof BrowseMenu menu)) return;
+        if (!(event.getInventory().getHolder() instanceof ClickableMenu menu)) return;
         event.setCancelled(true);
         if (event.getClickedInventory() != event.getInventory()) return;
-        menu.onClick(event.getRawSlot());
+        menu.onClick(event.getRawSlot(), event.isRightClick());
     }
 
     @EventHandler
     public void onDrag(InventoryDragEvent event) {
-        if (event.getInventory().getHolder() instanceof BrowseMenu) {
+        if (event.getInventory().getHolder() instanceof ClickableMenu) {
             event.setCancelled(true);
         }
     }
