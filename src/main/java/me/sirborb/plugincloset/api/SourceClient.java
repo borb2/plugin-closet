@@ -47,6 +47,15 @@ public interface SourceClient {
     boolean enabled();
 
     /**
+     * Can this source serve any of the selected platforms? A source that cannot express
+     * the filter must be left out of the search entirely, otherwise it answers with jars
+     * for the wrong platform and the page reads as if the filter did nothing.
+     *
+     * @param platforms empty means "no filter", which every source serves
+     */
+    boolean serves(Set<Platform> platforms);
+
+    /**
      * @param platforms inclusive-OR filter; empty means "every platform this source knows"
      * @param offset    index of the first result, not a page number
      * @param limit     caller must respect the source's cap ({@link #maxLimit()})

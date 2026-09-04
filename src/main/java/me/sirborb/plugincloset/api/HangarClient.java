@@ -48,6 +48,12 @@ public final class HangarClient implements SourceClient {
         return MAX_LIMIT;
     }
 
+    /** Only PAPER/WATERFALL/VELOCITY exist here; a Spigot or Fabric filter excludes Hangar. */
+    @Override
+    public boolean serves(Set<Platform> platforms) {
+        return platforms == null || platforms.isEmpty() || !hangarNames(platforms).isEmpty();
+    }
+
     @Override
     public CompletableFuture<List<PluginListing>> search(String query, Sort sort, Set<Platform> platforms,
                                                          int offset, int limit) {
@@ -107,11 +113,13 @@ public final class HangarClient implements SourceClient {
 
     /**
      * Drop listings that support none of the selected platforms. Needed because Hangar's
-     * search takes only one platform, so a multi-select filter is finished client-side.
+     * search takes only one platform, so a multi-select filter is finished client-side —
+     * and because a filter Hangar cannot express at all (Spigot, Bukkit, Purpur, the mod
+     * loaders) must return nothing rather than every Paper plugin.
      */
     public static List<PluginListing> filterToPlatforms(List<PluginListing> listings, Set<Platform> platforms) {
+        if (platforms == null || platforms.isEmpty()) return listings;
         Set<String> wanted = hangarNames(platforms);
-        if (wanted.isEmpty() || wanted.size() == 1) return listings;
         List<PluginListing> out = new ArrayList<>();
         for (PluginListing l : listings) {
             for (Platform p : l.platforms()) {

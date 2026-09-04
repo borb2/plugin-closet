@@ -47,6 +47,13 @@ public final class ModrinthClient implements SourceClient {
         return MAX_LIMIT;
     }
 
+    /** Every platform with a loader facet; only UNKNOWN has none. */
+    @Override
+    public boolean serves(Set<Platform> platforms) {
+        return platforms == null || platforms.isEmpty()
+                || platforms.stream().anyMatch(p -> p.modrinthLoader() != null);
+    }
+
     @Override
     public CompletableFuture<List<PluginListing>> search(String query, Sort sort, Set<Platform> platforms,
                                                          int offset, int limit) {

@@ -46,8 +46,10 @@ public final class PluginIndex {
     public CompletableFuture<List<PluginListing>> search(String query, SourceClient.Sort sort,
                                                          Set<Platform> platforms, int page, int pageSize) {
         List<SourceClient> active = new ArrayList<>();
-        if (modrinth.enabled()) active.add(modrinth);
-        if (hangar.enabled()) active.add(hangar);
+        // A source that cannot serve the filter is dropped here, not asked and discarded:
+        // that way the sources left split the whole page instead of half of it.
+        if (modrinth.enabled() && modrinth.serves(platforms)) active.add(modrinth);
+        if (hangar.enabled() && hangar.serves(platforms)) active.add(hangar);
         if (active.isEmpty()) return CompletableFuture.completedFuture(List.of());
 
         int share = Math.max(1, pageSize / active.size());

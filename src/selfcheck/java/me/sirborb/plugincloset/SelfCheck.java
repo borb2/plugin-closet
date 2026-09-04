@@ -136,6 +136,15 @@ public final class SelfCheck {
         check(!e.platforms().contains(Platform.FOLIA)); // Hangar has no FOLIA, ever
         check(e.supportedMcVersions().contains("26.1.2"));
         check(!e.authors().isEmpty());
+
+        // The platform filter, the part that used to leak: a Spigot or Fabric filter must
+        // drop every Hangar hit, not fall through to "all Paper plugins".
+        check(HangarClient.filterToPlatforms(hits, Set.of()).size() == hits.size());
+        check(HangarClient.filterToPlatforms(hits, EnumSet.of(Platform.PAPER)).size() == hits.size());
+        check(HangarClient.filterToPlatforms(hits, EnumSet.of(Platform.FOLIA)).size() == hits.size());
+        check(HangarClient.filterToPlatforms(hits, EnumSet.of(Platform.SPIGOT)).isEmpty());
+        check(HangarClient.filterToPlatforms(hits, EnumSet.of(Platform.FABRIC)).isEmpty());
+        check(HangarClient.filterToPlatforms(hits, EnumSet.of(Platform.VELOCITY)).isEmpty());
     }
 
     private static void hangarVersionsExternal() {
