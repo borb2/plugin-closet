@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>%plugin% — logs</title>
+<style>
+  :root {
+    --bg: #0d1017;
+    --panel: #141922;
+    --edge: #222a37;
+    --text: #c9cdd4;
+    --dim: #6e7581;
+    --accent: #ffba08;
+    --warn: #fbbf24;
+    --err: #f87171;
+    --mark: #3b3a1a;
+    --cur: #ffba08;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.55 ui-monospace, "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+  }
+
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: linear-gradient(180deg, #141922, #11151d);
+    border-bottom: 1px solid var(--edge);
+    padding: 12px 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    align-items: center;
+  }
+  h1 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: .2px;
+    color: var(--accent);
+  }
+  h1 .dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    margin-right: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+  }
+  .meta { color: var(--dim); font-size: 12px; }
+  .spacer { flex: 1 1 auto; }
+
+  .find {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #0f131b;
+    border: 1px solid var(--edge);
+    border-radius: 7px;
+    padding: 3px 6px;
+  }
+  .find:focus-within { border-color: #3a4658; }
+  .find input {
+    background: transparent;
+    border: 0;
+    outline: 0;
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    width: 190px;
+    padding: 3px 2px;
+  }
+  .find input::placeholder { color: #4b5361; }
+  #hits { color: var(--dim); font-size: 12px; min-width: 46px; text-align: right; }
+
+  button {
+    background: #1a2130;
+    color: var(--text);
+    border: 1px solid var(--edge);
+    border-radius: 7px;
+    padding: 6px 11px;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background .12s, border-color .12s, color .12s;
+  }
+  button:hover { background: #212a3c; border-color: #38465c; }
+  button:active { transform: translateY(1px); }
+  button.icon { padding: 4px 8px; }
+  button.primary { color: #0d1017; background: var(--accent); border-color: var(--accent); font-weight: 600; }
+  button.primary:hover { background: #ffc635; }
+
+  main {
+    padding: 14px 18px 90px;
+  }
+  #log {
+    background: var(--panel);
+    border: 1px solid var(--edge);
+    border-radius: 10px;
+    padding: 10px 0;
+    overflow-x: auto;
+  }
+  .l {
+    display: flex;
+    gap: 14px;
+    padding: 1px 16px;
+    white-space: pre;
+    scroll-margin-top: 90px;
+  }
+  .l:hover { background: #1a202b; }
+  .n {
+    color: #3f4757;
+    text-align: right;
+    min-width: 46px;
+    user-select: none;
+    flex: 0 0 auto;
+  }
+  .t { flex: 1 1 auto; }
+  .warn .t { color: var(--warn); }
+  .err .t { color: var(--err); }
+  .empty .t { color: var(--dim); font-style: italic; }
+
+  mark { background: var(--mark); color: #ffe9a8; border-radius: 2px; }
+  mark.cur { background: var(--cur); color: #0d1017; }
+
+  #top {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .18s;
+    box-shadow: 0 6px 20px rgba(0,0,0,.5);
+  }
+  #top.on { opacity: 1; pointer-events: auto; }
+
+  #toast {
+    position: fixed;
+    left: 50%;
+    bottom: 26px;
+    transform: translateX(-50%) translateY(14px);
+    background: #1a2130;
+    border: 1px solid var(--edge);
+    color: var(--text);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity .18s, transform .18s;
+    pointer-events: none;
+  }
+  #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  footer { color: #39404d; font-size: 11px; padding: 0 18px 22px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="dot"></span>%plugin%</h1>
+  <span class="meta">%count% lines &middot; read %generated% &middot; read-only</span>
+  <span class="spacer"></span>
+  <div class="find">
+    <input id="q" type="search" placeholder="Find (Ctrl+F)" autocomplete="off" spellcheck="false">
+    <span id="hits"></span>
+    <button class="icon" id="prev" title="Previous match (Shift+Enter)">&uarr;</button>
+    <button class="icon" id="next" title="Next match (Enter)">&darr;</button>
+  </div>
+  <button id="copy">Copy all</button>
+  <button class="primary" id="reload">Reload</button>
+</header>
+
+<main>
+  <div id="log">%lines%</div>
+</main>
+
+<footer>PluginCloset log viewer &middot; this page only reads the server log; it cannot run commands.</footer>
+
+<button id="top">&uarr; Go to top</button>
+<div id="toast"></div>
+
+<script>
+(function () {
+  var log = document.getElementById('log');
+  var lines = Array.prototype.slice.call(log.querySelectorAll('.l'));
+  var q = document.getElementById('q');
+  var hits = document.getElementById('hits');
+  var marks = [];
+  var at = -1;
+
+  lines.forEach(function (el) { el.__t = el.querySelector('.t'); el.__raw = el.__t.textContent; });
+
+  function esc(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function search() {
+    var needle = q.value;
+    marks = [];
+    at = -1;
+    if (!needle) {
+      lines.forEach(function (el) { el.__t.textContent = el.__raw; });
+      hits.textContent = '';
+      return;
+    }
+    var lower = needle.toLowerCase();
+    lines.forEach(function (el) {
+      var raw = el.__raw;
+      var hay = raw.toLowerCase();
+      if (hay.indexOf(lower) < 0) {
+        if (el.__t.querySelector('mark')) el.__t.textContent = raw;
+        return;
+      }
+      var out = '';
+      var i = 0;
+      var found;
+      while ((found = hay.indexOf(lower, i)) >= 0) {
+        out += esc(raw.slice(i, found)) + '<mark>' + esc(raw.substr(found, needle.length)) + '</mark>';
+        i = found + needle.length;
+      }
+      el.__t.innerHTML = out + esc(raw.slice(i));
+    });
+    marks = Array.prototype.slice.call(log.querySelectorAll('mark'));
+    hits.textContent = marks.length ? '0/' + marks.length : 'none';
+    if (marks.length) step(1);
+  }
+
+  function step(by) {
+    if (!marks.length) return;
+    if (at >= 0 && marks[at]) marks[at].classList.remove('cur');
+    at = (at + by + marks.length) % marks.length;
+    marks[at].classList.add('cur');
+    marks[at].scrollIntoView({ block: 'center' });
+    hits.textContent = (at + 1) + '/' + marks.length;
+  }
+
+  var typing;
+  q.addEventListener('input', function () {
+    clearTimeout(typing);
+    typing = setTimeout(search, 120);
+  });
+  q.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); marks.length ? step(e.shiftKey ? -1 : 1) : search(); }
+    if (e.key === 'Escape') { q.value = ''; search(); q.blur(); }
+  });
+  document.getElementById('next').addEventListener('click', function () { step(1); });
+  document.getElementById('prev').addEventListener('click', function () { step(-1); });
+
+  // Take over the browser's own find, so Ctrl+F lands in the box that knows about lines.
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+      e.preventDefault();
+      q.focus();
+      q.select();
+    }
+  });
+
+  function toast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('on');
+    setTimeout(function () { t.classList.remove('on'); }, 1600);
+  }
+
+  document.getElementById('copy').addEventListener('click', function () {
+    var text = lines.map(function (el) { return el.__raw; }).join('\n');
+    // Plain http is not a secure context, so the clipboard API is usually unavailable here.
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(function () { toast('Copied ' + lines.length + ' lines'); },
+        function () { fallback(text); });
+    } else {
+      fallback(text);
+    }
+  });
+
+  function fallback(text) {
+    var box = document.createElement('textarea');
+    box.value = text;
+    box.style.position = 'fixed';
+    box.style.opacity = '0';
+    document.body.appendChild(box);
+    box.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(box);
+    toast(ok ? 'Copied ' + lines.length + ' lines' : 'Copy failed — select the text manually');
+  }
+
+  document.getElementById('reload').addEventListener('click', function () { location.reload(); });
+
+  var top = document.getElementById('top');
+  top.addEventListener('click', function () { window.scrollTo({ top: 0 }); });
+  window.addEventListener('scroll', function () {
+    top.classList.toggle('on', window.scrollY > 400);
+  });
+
+  window.scrollTo(0, document.body.scrollHeight);
+})();
+</script>
+</body>
+</html>

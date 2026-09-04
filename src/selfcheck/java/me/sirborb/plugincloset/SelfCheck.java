@@ -16,6 +16,7 @@ import me.sirborb.plugincloset.model.Platform;
 import me.sirborb.plugincloset.model.PluginListing;
 import me.sirborb.plugincloset.model.PluginVersionFile;
 import me.sirborb.plugincloset.model.Source;
+import me.sirborb.plugincloset.web.LogViewer;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -37,7 +38,7 @@ public final class SelfCheck {
 
     private static int checks;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         boolean assertionsOn = false;
         assert assertionsOn = true;
         if (!assertionsOn) throw new IllegalStateException("run with -ea, or these assertions do nothing");
@@ -57,6 +58,7 @@ public final class SelfCheck {
         scrollSelects();
         guiConfig();
         miniMessage();
+        logFiltering();
 
         System.out.println("SelfCheck: " + checks + " assertions passed.");
     }
@@ -293,6 +295,11 @@ public final class SelfCheck {
         check(Downloader.safeJarName("../../evil.jar").equals("evil.jar"));
         check(Downloader.safeJarName("..\\..\\evil.jar").equals("evil.jar"));
         check(Downloader.safeJarName("odd name (1).jar").equals("odd_name__1_.jar"));
+        // Pasted-link installs feed the URL path through the same sanitiser.
+        check(Downloader.safeJarName("/Euphillya/WorldEdit-Folia/releases/download/"
+                + "build-version/7.4.x-159/worldedit-bukkit-7.4.1-SNAPSHOT-dist.jar")
+                .equals("worldedit-bukkit-7.4.1-SNAPSHOT-dist.jar"));
+        check(Downloader.safeJarName("/releases/latest") == null);
 
         // Anything that is not a plain jar is refused outright.
         check(Downloader.safeJarName("payload.jar.exe") == null);
@@ -350,6 +357,103 @@ public final class SelfCheck {
         }
         check(SourceClient.Sort.RELEVANCE.prev() == SourceClient.Sort.UPDATED);
         check(SourceClient.Sort.UPDATED.next() == SourceClient.Sort.RELEVANCE);
+    }
+
+    /**
+     * What the log viewer shows for one plugin. The stack-trace rule is the point: Paper
+     * tags only the first line, so dropping untagged lines outright would serve a header
+     * with no exception under it.
+     */
+    private static void logFiltering() throws Exception {
+        List<String> log = List.of(
+                "[12:00:00 INFO]: [WorldEdit] Loaded",
+                "[12:00:01 INFO]: [OtherPlugin] Not ours",
+                "[12:00:02 WARN]: [WorldEdit] Something odd",
+                "java.lang.IllegalStateException: boom",
+                "	at com.example.Thing.run(Thing.java:12)",
+                "Caused by: java.io.IOException: disk",
+                "[12:00:03 INFO]: [OtherPlugin] Also not ours",
+                "	at com.example.Other.run(Other.java:9)");
+
+        List<String> mine = me.sirborb.plugincloset.web.LogViewer.filter(log, "WorldEdit", 100);
+        check(mine.size() == 5);
+        check(mine.getFirst().contains("Loaded"));
+        check(mine.contains("Caused by: java.io.IOException: disk"));
+        // A frame that follows someone else's line belongs to them, not to us.
+        check(!mine.contains("	at com.example.Other.run(Other.java:9)"));
+        check(mine.stream().noneMatch(l -> l.contains("OtherPlugin")));
+
+        // The cap keeps the newest lines, which are the ones being read.
+        List<String> capped = me.sirborb.plugincloset.web.LogViewer.filter(log, "WorldEdit", 2);
+        check(capped.size() == 2);
+        check(capped.getLast().equals("Caused by: java.io.IOException: disk"));
+
+        check(me.sirborb.plugincloset.web.LogViewer.filter(log, "Nobody", 100).isEmpty());
+
+        // A log line is page content, never markup.
+        check(me.sirborb.plugincloset.web.LogViewer.escapeHtml("<script>alert(1)</script>")
+                .equals("&lt;script&gt;alert(1)&lt;/script&gt;"));
+        check(me.sirborb.plugincloset.web.LogViewer.escapeHtml("a & b").equals("a &amp; b"));
+
+        // The page itself: every placeholder filled, and a log line is never markup.
+        String template = new String(SelfCheck.class.getResourceAsStream("/web/logs.html")
+                .readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        String html = me.sirborb.plugincloset.web.LogViewer.render(template, "WorldEdit",
+                List.of("[12:00:00 INFO]: [WorldEdit] <b>hi</b>"));
+        check(!html.contains("%plugin%") && !html.contains("%lines%")
+                && !html.contains("%count%") && !html.contains("%generated%"));
+        check(html.contains("&lt;b&gt;hi&lt;/b&gt;") && !html.contains("<b>hi</b>"));
+        check(html.contains("<title>WorldEdit"));
+        // An empty result is a sentence, not a blank page.
+        check(me.sirborb.plugincloset.web.LogViewer.render(template, "Nobody", List.of())
+                .contains("Nothing in the log mentions Nobody"));
+
+        proxyTrust();
+
+        check(Lore.bytes(0).isEmpty());
+        check(Lore.bytes(2048).equals("2 KB"));
+        check(Lore.bytes(1024 * 1024 * 3 / 2).equals("1.5 MB"));
+    }
+
+    /**
+     * Who a request is allowed to claim to be. This is the access check for the log
+     * viewer, so the rule that matters is the negative one: a forwarded header from an
+     * address nobody configured must be ignored, not believed.
+     */
+    private static void proxyTrust() throws Exception {
+        var trusted = LogViewer.parseCidrs(List.of("172.18.0.1", "10.0.0.0/8"), null);
+        java.net.InetAddress proxy = java.net.InetAddress.ofLiteral("172.18.0.1");
+        java.net.InetAddress inRange = java.net.InetAddress.ofLiteral("10.4.5.6");
+        java.net.InetAddress stranger = java.net.InetAddress.ofLiteral("203.0.113.9");
+        java.net.InetAddress client = java.net.InetAddress.ofLiteral("198.51.100.7");
+
+        check(LogViewer.trusted(proxy, trusted));
+        check(LogViewer.trusted(inRange, trusted));
+        check(!LogViewer.trusted(stranger, trusted));
+        check(!LogViewer.trusted(java.net.InetAddress.ofLiteral("11.0.0.1"), trusted));
+
+        // The tunnel speaks for the real client.
+        check(client.equals(LogViewer.forwardedAddress(proxy, "198.51.100.7", trusted)));
+        // X-Forwarded-For is a chain; the client is the first hop.
+        check(client.equals(LogViewer.forwardedAddress(proxy,
+                "198.51.100.7, 172.18.0.1", trusted)));
+        // Anyone else claiming a client IP is ignored, and falls back to their own address.
+        check(LogViewer.forwardedAddress(stranger, "198.51.100.7", trusted) == null);
+        check(LogViewer.forwardedAddress(proxy, null, trusted) == null);
+        check(LogViewer.forwardedAddress(proxy, "not-an-address", trusted) == null);
+        // A hostname is never resolved: that would be a DNS lookup per request.
+        check(LogViewer.forwardedAddress(proxy, "example.org", trusted) == null);
+        // With nothing configured, no proxy is trusted at all.
+        check(LogViewer.forwardedAddress(proxy, "198.51.100.7", List.of()) == null);
+
+        // v4 and v6 never match each other, whatever the mask says.
+        var v6 = LogViewer.parseCidrs(List.of("::1"), null);
+        check(!LogViewer.trusted(java.net.InetAddress.ofLiteral("127.0.0.1"), v6));
+        check(LogViewer.trusted(java.net.InetAddress.ofLiteral("::1"), v6));
+
+        check(LogViewer.parseCidr("garbage") == null);
+        check(LogViewer.parseCidr("10.0.0.0/99") == null);
+        check(LogViewer.parseCidr("10.0.0.0/0").contains(stranger));   // an explicit "anyone"
     }
 
     /** The two rules the guis/ files depend on: slot ranges, and conditional lore lines. */

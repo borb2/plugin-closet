@@ -12,6 +12,7 @@ import me.sirborb.plugincloset.install.Downloader;
 import me.sirborb.plugincloset.install.InstallManifest;
 import me.sirborb.plugincloset.install.Installer;
 import me.sirborb.plugincloset.platform.RuntimePlatform;
+import me.sirborb.plugincloset.web.LogViewer;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -32,6 +33,7 @@ public final class PluginCloset extends JavaPlugin implements Listener {
     private InstallManifest manifest;
     private Downloader downloader;
     private Installer installer;
+    private LogViewer logViewer;
     private SourceClient.Sort defaultSort;
     private boolean requireConfirmation;
     private Instant startedAt;
@@ -40,6 +42,7 @@ public final class PluginCloset extends JavaPlugin implements Listener {
     public void onEnable() {
         startedAt = Instant.now();
         saveDefaultConfig();
+        logViewer = new LogViewer(this);
         reload();
 
         manifest = new InstallManifest(getDataFolder().toPath().resolve("installed.json"));
@@ -55,6 +58,11 @@ public final class PluginCloset extends JavaPlugin implements Listener {
 
         getLogger().info("Ready on " + RuntimePlatform.describe()
                 + " (downloads resolve as " + RuntimePlatform.current() + ")");
+    }
+
+    @Override
+    public void onDisable() {
+        if (logViewer != null) logViewer.stop();
     }
 
     /** Rebuild everything driven by config. Called on enable and by /plugincloset reload. */
@@ -86,6 +94,13 @@ public final class PluginCloset extends JavaPlugin implements Listener {
                 userAgent,
                 config.getInt("max-concurrent-downloads", 3),
                 asyncExecutor());
+
+        logViewer.reload();
+    }
+
+    /** The read-only web log viewer. Never null; ask {@link LogViewer#running()} first. */
+    public LogViewer logViewer() {
+        return logViewer;
     }
 
     /** The editable menu layouts under {@code guis/}. */

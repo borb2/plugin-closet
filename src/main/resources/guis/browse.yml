@@ -165,6 +165,17 @@ items:
       - ""
       - "<#565d68>Click to review and check for updates"
 
+  custom-install:
+    material: HOPPER
+    name: "<#ffba08>Install from a Link"
+    slot: 52
+    lore:
+      - ""
+      - "<#c9cdd4>Paste a direct .jar download link"
+      - "<#565d68>A progress bar shows while it downloads"
+      - ""
+      - "<#fbbf24>Nothing verifies these files."
+
   close:
     material: BARRIER
     name: "<#f87171>Close"

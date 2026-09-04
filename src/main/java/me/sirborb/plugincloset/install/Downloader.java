@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.util.HexFormat;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.LongConsumer;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
 
@@ -76,6 +77,86 @@ public final class Downloader {
         return out;
     }
 
+    /**
+     * Fetch a jar from a URL the admin typed, with no source, version or checksum behind
+     * it. Same guards as a catalogue install — plain {@code .jar} name, capped size, path
+     * confined to the plugins folder — minus the hash, which nobody published.
+     *
+     * @param progress called with the bytes written so far, roughly every 64 KB
+     */
+    public CompletableFuture<Result> installUrl(String url, LongConsumer progress) {
+        CompletableFuture<Result> out = new CompletableFuture<>();
+        executor.execute(() -> {
+            try {
+                out.complete(installUrlBlocking(url, progress));
+            } catch (Exception e) {
+                out.completeExceptionally(e);
+            }
+        });
+        return out;
+    }
+
+    /** Content-Length of the URL, or 0 when the server does not say. */
+    public CompletableFuture<Long> sizeOf(String url) {
+        CompletableFuture<Long> out = new CompletableFuture<>();
+        executor.execute(() -> {
+            try {
+                HttpRequest req = HttpRequest.newBuilder(URI.create(url))
+                        .timeout(Duration.ofSeconds(30))
+                        .header("User-Agent", userAgent)
+                        .method("HEAD", HttpRequest.BodyPublishers.noBody())
+                        .build();
+                HttpResponse<Void> resp = Http.client().send(req, HttpResponse.BodyHandlers.discarding());
+                out.complete(resp.headers().firstValueAsLong("content-length").orElse(0L));
+            } catch (Exception e) {
+                out.complete(0L);   // unknown size is not a failure, only a vaguer bar
+            }
+        });
+        return out;
+    }
+
+    private Result installUrlBlocking(String url, LongConsumer progress) throws Exception {
+        URI uri = URI.create(url.trim());
+        String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
+        if (!scheme.equals("http") && !scheme.equals("https")) {
+            throw new IOException("only http and https links can be downloaded");
+        }
+        String name = safeJarName(java.net.URLDecoder.decode(
+                uri.getPath() == null ? "" : uri.getPath(), java.nio.charset.StandardCharsets.UTF_8));
+        if (name == null) {
+            throw new IOException("that link does not end in a .jar file name");
+        }
+        Path target = pluginsDir.resolve(name).normalize();
+        if (!target.startsWith(pluginsDir)) {
+            throw new IOException("refusing a path that escapes the plugins folder: " + name);
+        }
+
+        slots.acquire();
+        try {
+            Files.createDirectories(tmpDir);
+            Path tmp = Files.createTempFile(tmpDir, "dl-", ".part");
+            try {
+                long bytes = fetch(uri.toString(), tmp, progress);
+                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+                return new Result(target, name, bytes, false);
+            } catch (Exception e) {
+                Files.deleteIfExists(tmp);
+                throw e;
+            }
+        } finally {
+            slots.release();
+        }
+    }
+
+    /** Delete a jar this plugin knows about. Confined to the plugins folder, like every write. */
+    public boolean delete(String jarFileName) throws IOException {
+        String safe = safeJarName(jarFileName);
+        if (safe == null) return false;
+        Path jar = pluginsDir.resolve(safe).normalize();
+        if (!jar.startsWith(pluginsDir)) return false;
+        return Files.deleteIfExists(jar);
+    }
+
     private Result installBlocking(PluginVersionFile file, String previousJar) throws Exception {
         if (file.external()) {
             throw new IOException("this version is hosted outside Hangar (" + file.downloadUrl()
@@ -95,7 +176,7 @@ public final class Downloader {
             Files.createDirectories(tmpDir);
             Path tmp = Files.createTempFile(tmpDir, "dl-", ".part");
             try {
-                long bytes = fetch(file.downloadUrl(), tmp);
+                long bytes = fetch(file.downloadUrl(), tmp, null);
                 boolean verified = false;
                 if (file.hasHash()) {
                     String actual = hash(tmp, file.hashAlgo());
@@ -119,7 +200,7 @@ public final class Downloader {
         }
     }
 
-    private long fetch(String url, Path tmp) throws Exception {
+    private long fetch(String url, Path tmp, LongConsumer progress) throws Exception {
         HttpRequest req = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofMinutes(5))
                 .header("User-Agent", userAgent)
@@ -133,14 +214,14 @@ public final class Downloader {
         }
         long total;
         try (InputStream in = resp.body()) {
-            total = copyCapped(in, tmp);
+            total = copyCapped(in, tmp, progress);
         }
         if (total == 0) throw new IOException("downloaded an empty file from " + url);
         return total;
     }
 
     /** Copy with a hard ceiling, so a bad URL cannot fill the disk. */
-    private static long copyCapped(InputStream in, Path target) throws IOException {
+    private static long copyCapped(InputStream in, Path target, LongConsumer progress) throws IOException {
         long total = 0;
         byte[] buf = new byte[64 * 1024];
         try (var out = Files.newOutputStream(target)) {
@@ -151,6 +232,7 @@ public final class Downloader {
                     throw new IOException("file exceeded " + (MAX_JAR_BYTES / 1024 / 1024) + " MB");
                 }
                 out.write(buf, 0, read);
+                if (progress != null) progress.accept(total);
             }
         }
         return total;

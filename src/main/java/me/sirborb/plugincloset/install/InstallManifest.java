@@ -58,6 +58,11 @@ public final class InstallManifest {
         entries.put(entry.key(), entry);
     }
 
+    /** Forget an entry, e.g. after its jar was deleted. Call {@link #save()} after. */
+    public void remove(String key) {
+        entries.remove(key);
+    }
+
     public void load() throws IOException {
         entries.clear();
         if (!Files.exists(file)) return;

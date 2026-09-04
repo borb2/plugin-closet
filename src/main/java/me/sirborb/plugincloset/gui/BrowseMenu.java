@@ -107,6 +107,7 @@ public final class BrowseMenu implements ClickableMenu {
                 refresh();
             }
             case "search" -> Dialogs.search(plugin, this);
+            case "custom-install" -> Dialogs.customInstall(plugin, this);
             case "prev", "prev-off" -> {
                 if (page > 0) {
                     page--;

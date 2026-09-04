@@ -33,6 +33,13 @@ public final class Lore {
         return s.endsWith(".0") ? s.substring(0, s.length() - 2) : s;
     }
 
+    /** 1536000 -> "1.5 MB". Jar sizes only, so KB is the smallest unit worth printing. */
+    public static String bytes(long n) {
+        if (n <= 0) return "";
+        if (n < 1024 * 1024) return trim(n / 1024.0) + " KB";
+        return trim(n / 1024.0 / 1024.0) + " MB";
+    }
+
     /** "3 days ago". Coarse on purpose — nobody needs minutes on a plugin listing. */
     public static String relative(Instant then) {
         if (then == null || then.equals(Instant.EPOCH)) return "unknown";

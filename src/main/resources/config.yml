@@ -14,3 +14,34 @@ items-per-page: 36
 default-sort: relevance   # relevance | downloads | follows | newest | updated
 require-confirmation: false
 max-concurrent-downloads: 3
+
+# "View Logs" in the installed-plugins menu opens that plugin's log lines as a web page.
+# The page only reads the log; it cannot run commands. Each link is a one-off secret and
+# stops working after a few minutes.
+log-viewer:
+  enabled: true
+  port: 8135
+  # What to listen on. Leave this alone unless you know you need something else.
+  bind: "0.0.0.0"
+  # The domain or IP admins will open. Blank = guessed from the server address.
+  host: ""
+  # Using a reverse proxy or a Cloudflare Tunnel? Put the full address people will open
+  # here, e.g. "https://logs.example.org", and links use it as-is. Blank = host and port.
+  public-url: ""
+  # Only needed with a proxy: the address the proxy connects from, e.g. ["172.18.0.1"].
+  # Without it every request looks like it came from the proxy and links get refused.
+  # The console prints the address to put here. Anything listed can pretend to be any
+  # player, so list your proxy and nothing else.
+  trusted-proxies: []
+  # Only open the link from the same address the player is playing from. Turn this off if
+  # your browser is on IPv6 and your game is on IPv4, or if your home IP keeps changing —
+  # the console says which. With it off the secret link is the only lock, so do that only
+  # behind a login page or on a private network.
+  require-matching-ip: true
+  # How long a link keeps working.
+  link-minutes: 10
+  # Most lines to show on the page.
+  max-lines: 2000
+  # How far back through the log file to read, in bytes. 8 MB by default.
+  max-read-bytes: 8388608
+  log-file: "logs/latest.log"

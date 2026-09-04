@@ -25,7 +25,7 @@ import java.util.logging.Level;
 public final class GuiConfig {
 
     /** Menu name to file, i.e. the set of layouts this plugin ships. */
-    private static final List<String> MENUS = List.of("browse", "installed");
+    private static final List<String> MENUS = List.of("browse", "installed", "manage");
 
     private final Map<String, MenuSpec> menus = new HashMap<>();
 

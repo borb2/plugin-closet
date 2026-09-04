@@ -1,0 +1,128 @@
+# One installed plugin: its stats, and what can be done to it.
+# Opened by clicking an entry in the installed-plugins menu.
+#
+# See guis/browse.yml for the full list of fields any item accepts.
+#
+# Placeholders here: %name% %version% %latest% %source% %file% %size% %installed%
+# %loaded% %status_material% %status_color% %status_label% %status_detail%
+# %known% %unknown% %outdated% %busy% %not_busy% %logs% %no_logs%
+#
+# %known% is set when Plugin Closet installed this jar and therefore knows where it came
+# from. Without it there is no source to ask, so Update and Change Version go grey.
+#
+# The four health colours are NOT repeated here — they are read from guis/installed.yml,
+# so recolouring a status only has to be done once.
+
+title: "<#000000>%name%"
+size: 45
+
+items:
+
+  filler:
+    material: GRAY_STAINED_GLASS_PANE
+    name: ""
+    slots: 0-44
+
+  info:
+    material: "%status_material%"
+    name: "<#ffba08>%name%"
+    slot: 13
+    lore:
+      - "<#6e7581>Version: <#c9cdd4>%version%"
+      - "<#6e7581>Latest: <#fbbf24>%latest%"
+      - "<#6e7581>Source: <#c9cdd4>%source%"
+      - "<#6e7581>File: <#c9cdd4>%file%"
+      - "<#6e7581>Size: <#c9cdd4>%size%"
+      - "<#6e7581>Installed: <#c9cdd4>%installed%"
+      - "<#6e7581>Loaded as: <#c9cdd4>%loaded%"
+      - ""
+      - "<%status_color%>● %status_label%"
+      - "<#565d68>%status_detail%"
+
+  update:
+    material: LIME_DYE
+    name: "<#4ade80>Update to Latest"
+    slot: 29
+    show-if: "%known%"
+    glow: "%outdated%"
+    lore:
+      - "<#6e7581>Newest build: <#fbbf24>%latest%"
+      - ""
+      - "<#c9cdd4>Downloads the newest build and"
+      - "<#c9cdd4>deletes the old jar."
+
+  update-off:
+    material: GRAY_DYE
+    name: "<#565d68>Update to Latest"
+    slot: 29
+    show-if: "%unknown%"
+    lore:
+      - "<#565d68>Plugin Closet did not install this jar,"
+      - "<#565d68>so there is no source to update from."
+
+  versions:
+    material: BOOKSHELF
+    name: "<#ffba08>Change Version"
+    slot: 30
+    show-if: "%known%"
+    lore:
+      - "<#6e7581>From: <#c9cdd4>%source%"
+      - ""
+      - "<#c9cdd4>Pick any published build."
+      - "<#565d68>The old jar is deleted when you do."
+
+  versions-off:
+    material: GRAY_DYE
+    name: "<#565d68>Change Version"
+    slot: 30
+    show-if: "%unknown%"
+    lore:
+      - "<#565d68>Only jars installed from Modrinth or"
+      - "<#565d68>Hangar have a version list."
+
+  logs:
+    material: WRITABLE_BOOK
+    name: "<#60a5fa>View Logs"
+    slot: 32
+    show-if: "%logs%"
+    lore:
+      - "<#c9cdd4>Opens this plugin's log lines in a"
+      - "<#c9cdd4>web page, in your browser."
+      - ""
+      - "<#565d68>The link works only from your computer"
+      - "<#565d68>and expires on its own."
+
+  logs-off:
+    material: GRAY_DYE
+    name: "<#565d68>View Logs"
+    slot: 32
+    show-if: "%no_logs%"
+    lore:
+      - "<#565d68>The log viewer is off or its port is"
+      - "<#565d68>taken. See log-viewer in config.yml."
+
+  uninstall:
+    material: TNT
+    name: "<#f87171>Uninstall"
+    slot: 33
+    lore:
+      - "<#c9cdd4>Deletes <#ffffff>%file%"
+      - "<#565d68>Asks first. Config folders are kept."
+
+  working:
+    material: CLOCK
+    name: "<#ffba08>Working..."
+    slot: 22
+    show-if: "%busy%"
+    lore:
+      - "<#565d68>Downloading. This menu reopens when done."
+
+  back:
+    material: ARROW
+    name: "<#ffba08>Back to Installed"
+    slot: 36
+
+  close:
+    material: BARRIER
+    name: "<#f87171>Close"
+    slot: 44

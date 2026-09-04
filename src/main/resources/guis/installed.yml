@@ -3,7 +3,9 @@
 #
 # Placeholders here: %count% %status_counts% %checking% %not_checking% %empty%
 # — and on the entry template: %name% %version% %latest% %source% %file% %installed%
-# %status_material% %status_color% %status_label% %status_detail%
+# %status_material% %status_color% %status_label% %status_detail% %size%
+#
+# Clicking an entry opens guis/manage.yml for that jar.
 
 title: "<#000000>Installed Plugins"
 size: 54
@@ -47,6 +49,8 @@ entry:
     - ""
     - "<%status_color%>● %status_label%"
     - "<#565d68>%status_detail%"
+    - ""
+    - "<#ffba08>Click to manage"
 
 items:
 

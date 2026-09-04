@@ -41,11 +41,22 @@ import java.util.stream.Stream;
 public final class InstalledMenu implements ClickableMenu {
 
     /** The four health states. Their look lives in the config, keyed by lower-case name. */
-    private enum Status {OK, OUTDATED, BROKEN, PENDING}
+    public enum Status {OK, OUTDATED, BROKEN, PENDING}
 
-    /** One jar, plus whatever the manifest and the plugin manager know about it. */
-    private record Row(Path jar, String name, String version, String source,
-                       Instant installed, InstalledEntry manifest, Status status) {
+    /**
+     * One jar, plus whatever the manifest and the plugin manager know about it.
+     *
+     * @param loadedName the running plugin's own name, or null when nothing loaded from
+     *                   this jar. It is the name Paper tags log lines with, which is why
+     *                   it is kept separate from the display name.
+     */
+    public record Row(Path jar, String name, String loadedName, String version, String source,
+                      Instant installed, long size, InstalledEntry manifest, Status status) {
+
+        /** What the log is tagged with: the loaded plugin's name, else our best guess. */
+        public String logName() {
+            return loadedName == null || loadedName.isBlank() ? name : loadedName;
+        }
     }
 
     private final PluginCloset plugin;
@@ -81,8 +92,28 @@ public final class InstalledMenu implements ClickableMenu {
         checkUpdates();
     }
 
+    /** Reopen after an action changed something on disk. */
+    public void reopen() {
+        rescan();
+        render();
+        player.openInventory(inventory);
+    }
+
+    /** The newest installable version for a row, or "" when unknown. */
+    public String latestFor(Row row) {
+        return row.manifest() == null ? "" : latest.getOrDefault(row.manifest().key(), "");
+    }
+
     @Override
     public void onClick(int slot, boolean right) {
+        int index = entryIndex(slot);
+        if (index >= 0) {
+            if (index < entries.size()) {
+                Row row = entries.get(index);
+                onPlayerThread(() -> new ManageMenu(plugin, player, row, latestFor(row)).open());
+            }
+            return;
+        }
         switch (layout.getOrDefault(slot, "")) {
             // Deferred for the same reason BrowseMenu defers opening this one.
             case "back" -> onPlayerThread(() -> new BrowseMenu(plugin, player).open());
@@ -100,6 +131,14 @@ public final class InstalledMenu implements ClickableMenu {
                 // entries and decoration are read-only
             }
         }
+    }
+
+    /** Which entry a slot holds, or -1 if the slot is not part of the grid. */
+    private int entryIndex(int slot) {
+        for (int i = 0; i < entrySlots.length; i++) {
+            if (entrySlots[i] == slot) return i;
+        }
+        return -1;
     }
 
     /**
@@ -150,9 +189,18 @@ public final class InstalledMenu implements ClickableMenu {
                 : loaded != null ? loaded.getPluginMeta().getVersion()
                 : "";
         Instant installed = entry != null ? entry.installedAt() : modified(jar);
-        return new Row(jar, name, version == null ? "" : version,
+        return new Row(jar, name, loaded == null ? null : loaded.getName(),
+                version == null ? "" : version,
                 entry != null ? entry.source().display() : "",
-                installed, entry, status(jar, loaded, entry, installed));
+                installed, size(jar), entry, status(jar, loaded, entry, installed));
+    }
+
+    private long size(Path jar) {
+        try {
+            return Files.size(jar);
+        } catch (IOException e) {
+            return 0;
+        }
     }
 
     /** When the jar landed, for jars we did not install ourselves. */
@@ -288,6 +336,7 @@ public final class InstalledMenu implements ClickableMenu {
         ph.put("status_color", look(status, "color", Text.MUTED));
         ph.put("status_label", look(status, "label", status.name()));
         ph.put("status_detail", look(status, "detail", ""));
+        ph.put("size", Lore.bytes(row.size()));
         return ph;
     }
 
